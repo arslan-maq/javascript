@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Data Table</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .controls {
+            margin: 10px 0;
+        }
+        #pageSize, #filterInput {
+            padding: 5px;
+            margin-right: 10px;
+        }
+        .pagination {
+            margin-top: 10px;
+        }
+        .pagination button {
+            margin: 0 5px;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<h2>Advanced Data Table</h2>
+<div class="controls">
+    <input type="text" id="filterInput" placeholder="Filter by name...">
+    <select id="pageSize">
+        <option value="5">5</option>
+        <option value="10" selected>10</option>
+        <option value="20">20</option>
+    </select>
+    <span>Rows per page</span>
+</div>
+
+<table id="data-table">
+    <thead>
+        <tr>
+            <th data-sort="id">ID</th>
+            <th data-sort="name">Name</th>
+            <th data-sort="age">Age</th>
+        </tr>
+    </thead>
+    <tbody id="table-body"></tbody>
+</table>
+
+<div class="pagination">
+    <button id="prevPage">Previous</button>
+    <span id="pageInfo"></span>
+    <button id="nextPage">Next</button>
+</div>
+
+<script>
+    const data = [
+    { "id": 1, "name": "Alice", "age": 30 },
+        { "id": 2, "name": "Bob", "age": 25 },
+        { "id": 3, "name": "Diana", "age": 35 },
+        { "id": 4, "name": "Charlie", "age": 28 },
+        { "id": 5, "name": "Ethan", "age": 32 },
+        { "id": 6, "name": "Fiona", "age": 27 },
+        { "id": 7, "name": "George", "age": 40 },
+        { "id": 8, "name": "Hannah", "age": 29 },
+        { "id": 9, "name": "Ian", "age": 26 },
+        { "id": 10, "name": "Jessica", "age": 31 }
+    ];
+
+    let currentPage = 1;
+    let rowsPerPage = 10;
+    let filteredData = [...data];
+
+    function renderTable() {
+        const tableBody = document.getElementById('table-body');
+        tableBody.innerHTML = '';
+        const startIndex = (currentPage - 1) * rowsPerPage;
+        const endIndex = startIndex + rowsPerPage;
+        const paginatedData = filteredData.slice(startIndex, endIndex);
+
+        paginatedData.forEach(item => {
+            const row = tableBody.insertRow();
+            for (let key in item) {
+                row.insertCell().textContent = item[key];
+            }
+        });
+
+        // Update pagination info
+        document.getElementById('pageInfo').textContent = `Page ${currentPage} of ${Math.ceil(filteredData.length / rowsPerPage)}`;
+    }
+
+    function setupControls() {
+        document.getElementById('filterInput').addEventListener('input', function() {
+            const filterValue = this.value.toLowerCase();
+            filteredData = data.filter(item => item.name.toLowerCase().includes(filterValue));
+            currentPage = 1;
+            renderTable();
+        });
+
+        document.querySelectorAll('th').forEach(th => th.addEventListener('click', function() {
+            const column = this.dataset.sort;
+            const isAsc = this.classList.toggle('asc');
+            filteredData.sort((a, b) => {
+                if (a[column] < b[column]) return isAsc ? -1 : 1;
+                if (a[column] > b[column]) return isAsc ? 1 : -1;
+                return 0;
+            });
+            renderTable();
+        }));
+
+        document.getElementById('pageSize').addEventListener('change', function() {
+            rowsPerPage = parseInt(this.value, 10);
+            currentPage = 1;
+            renderTable();
+        });
+
+        document.getElementById('prevPage').addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                renderTable();
+            }
+        });
+
+        document.getElementById('nextPage').addEventListener('click', () => {
+            if (currentPage < Math.ceil(filteredData.length / rowsPerPage)) {
+                currentPage++;
+                renderTable();
+            }
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        setupControls();
+        renderTable();
+    });
+</script>
+
+</body>
+</html>
