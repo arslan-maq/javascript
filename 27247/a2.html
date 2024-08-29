@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Data Table</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #008CBA;
+            color: white;
+            cursor: pointer;
+        }
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        #filterInput {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<h2>Data Table with Filters and Sorting</h2>
+<input type="text" id="filterInput" placeholder="Filter by name...">
+
+<table id="data-table">
+    <thead>
+        <tr>
+            <th data-sort="id">ID</th>
+            <th data-sort="name">Name</th>
+            <th data-sort="age">Age</th>
+        </tr>
+    </thead>
+    <tbody id="table-body"></tbody>
+</table>
+
+<script>
+    const data = [
+    { "id": 1, "name": "Alice", "age": 30 },
+        { "id": 2, "name": "Bob", "age": 25 },
+        { "id": 3, "name": "Charlie", "age": 35 },
+        { "id": 4, "name": "Diana", "age": 28 },
+        { "id": 5, "name": "Ethan", "age": 32 },
+        { "id": 6, "name": "Fiona", "age": 27 },
+        { "id": 7, "name": "George", "age": 40 },
+        { "id": 8, "name": "Hannah", "age": 29 },
+        { "id": 9, "name": "Ian", "age": 26 },
+        { "id": 10, "name": "Jessica", "age": 31 }
+    ];
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const tableBody = document.getElementById('table-body');
+        const filterInput = document.getElementById('filterInput');
+
+        // Function to render table
+        function renderTable(dataToRender) {
+            tableBody.innerHTML = ''; // Clear current content
+            dataToRender.forEach(item => {
+                let row = tableBody.insertRow();
+                row.insertCell(0).textContent = item.id;
+                row.insertCell(1).textContent = item.name;
+                row.insertCell(2).textContent = item.age;
+            });
+        }
+
+        // Initial render
+        renderTable(data);
+
+        // Filter functionality
+        filterInput.addEventListener('keyup', function() {
+            const filterValue = this.value.toLowerCase();
+            const filteredData = data.filter(item => 
+                item.name.toLowerCase().includes(filterValue)
+            );
+            renderTable(filteredData);
+        });
+
+        // Sort functionality
+        document.querySelectorAll('th').forEach(th => th.addEventListener('click', (() => {
+            const column = th.dataset.sort;
+            const isAsc = th.classList.toggle('asc');
+            data.sort((a, b) => {
+                if (a[column] < b[column]) return isAsc ? -1 : 1;
+                if (a[column] > b[column]) return isAsc ? 1 : -1;
+                return 0;
+            });
+            renderTable(data);
+        })));
+    });
+</script>
+
+</body>
+</html>
