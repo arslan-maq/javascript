@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Visualization</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f4f4;
+            padding: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #dddddd;
+            text-align: left;
+            padding: 8px;
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+
+<h2>Data Table</h2>
+<table id="data-table">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Age</th>
+        </tr>
+    </thead>
+    <tbody id="table-body">
+        <!-- Data will be inserted here -->
+    </tbody>
+</table>
+
+<script>
+    const data = [
+        { "id": 1, "name": "Alice", "age": 30 },
+        { "id": 2, "name": "Bob", "age": 25 },
+        { "id": 3, "name": "Charlie", "age": 35 },
+        { "id": 4, "name": "Diana", "age": 28 },
+        { "id": 5, "name": "Ethan", "age": 32 },
+        { "id": 6, "name": "Fiona", "age": 27 },
+        { "id": 7, "name": "George", "age": 40 },
+        { "id": 8, "name": "Hannah", "age": 29 },
+        { "id": 9, "name": "Ian", "age": 26 },
+        { "id": 10, "name": "Jessica", "age": 31 }
+    ];
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const tableBody = document.getElementById('table-body');
+
+        data.forEach(item => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${item.id}</td>
+                <td>${item.name}</td>
+                <td>${item.age}</td>
+            `;
+            tableBody.appendChild(row);
+        });
+    });
+</script>
+
+</body>
+</html>
