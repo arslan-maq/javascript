@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Leaflet Map</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+   integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A=="
+   crossorigin=""/>
+    <style>
+        #map { height: 100vh; }
+    </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"
+   integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA=="
+   crossorigin=""></script>
+
+<script>
+    // Initialize the map
+    var map = L.map('map').setView([40.7128, -74.0060], 13);
+
+    // Add OpenStreetMap tiles
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 19,
+    }).addTo(map);
+
+    // Function to handle map click event
+    function onMapClick(e) {
+        alert("You clicked the map at latitude: " + e.latlng.lat + " and longitude: " + e.latlng.lng);
+
+        // Optional: Add a marker where the user clicked
+        var newMarker = L.marker(e.latlng).addTo(map)
+            .bindPopup('You clicked here at:<br>Lat: ' + e.latlng.lat.toFixed(4) + '<br>Lng: ' + e.latlng.lng.toFixed(4))
+            .openPopup();
+    }
+
+    // Adding click event listener to the map
+    map.on('click', onMapClick);
+
+    // Adding a marker to demonstrate functionality (you can remove or keep this)
+    L.marker([40.7128, -74.0060]).addTo(map)
+        .bindPopup('Click anywhere to get coordinates or place a marker.')
+        .openPopup();
+
+    // Optional: Add a control to toggle marker placement
+    var markerToggle = L.control({position: 'topright'});
+
+    markerToggle.onAdd = function(map) {
+        var div = L.DomUtil.create('div', 'marker-toggle');
+        div.innerHTML = '<button id="toggleMarker">Toggle Markers</button>';
+        div.firstChild.onclick = function() {
+            if (map.hasEventListeners('click')) {
+                map.off('click', onMapClick);
+                this.textContent = 'Enable Markers';
+            } else {
+                map.on('click', onMapClick);
+                this.textContent = 'Disable Markers';
+            }
+        };
+        return div;
+    };
+
+    markerToggle.addTo(map);
+</script>
+
+</body>
+</html>
