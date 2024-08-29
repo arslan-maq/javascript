@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Table with Pagination, Filter, and Sort</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+        }
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        #filterInput, #pageSizeSelect {
+            width: calc(100% - 20px);
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        .nav-button {
+            cursor: pointer;
+            margin: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<h2>Data Table with Advanced Controls</h2>
+<input type="text" id="filterInput" placeholder="Filter by name...">
+<select id="pageSizeSelect">
+    <option value="5">5 per page</option>
+    <option value="10" selected>10 per page</option>
+    <option value="20">20 per page</option>
+</select>
+
+<div>
+    <button class="nav-button" id="prevPage">Previous</button>
+    <button class="nav-button" id="nextPage">Next</button>
+    <span>Page <span id="currentPage">1</span></span>
+</div>
+
+<table id="data-table">
+    <thead>
+        <tr>
+            <th data-sort="id">ID</th>
+            <th data-sort="name">Name</th>
+            <th data-sort="age">Age</th>
+        </tr>
+    </thead>
+    <tbody id="table-body"></tbody>
+</table>
+
+<div class="visual-summary">
+    <h2>Visual Summary</h2>
+    <canvas id="ageChart" width="400" height="200"></canvas>
+    <canvas id="categoryChart" width="400" height="200"></canvas>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    const data = [
+    { "id": 1, "name": "Alice", "age": 30 },
+        { "id": 2, "name": "Bob", "age": 25 },
+        { "id": 3, "name": "Charlie", "age": 35 },
+        { "id": 4, "name": "Diana", "age": 28 },
+        { "id": 5, "name": "Ethan", "age": 32 },
+        { "id": 6, "name": "Fiona", "age": 27 },
+        { "id": 7, "name": "George", "age": 40 },
+        { "id": 8, "name": "Hannah", "age": 29 },
+        { "id": 9, "name": "Ian", "age": 26 },
+        { "id": 10, "name": "Jessica", "age": 31 }
+        // ... rest of your data
+    ];
+
+    let currentPage = 1;
+    let pageSize = 10;
+    let filteredData = [...data];
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const tableBody = document.getElementById('table-body');
+        const filterInput = document.getElementById('filterInput');
+        const pageSizeSelect = document.getElementById('pageSizeSelect');
+        const currentPageElement = document.getElementById('currentPage');
+        const prevPageButton = document.getElementById('prevPage');
+        const nextPageButton = document.getElementById('nextPage');
+
+        function renderTable(startIndex = 0) {
+            tableBody.innerHTML = ''; // Clear current content
+            const endIndex = startIndex + pageSize;
+            filteredData.slice(startIndex, endIndex).forEach(item => {
+                const row = tableBody.insertRow();
+                row.insertCell(0).textContent = item.id;
+                row.insertCell(1).textContent = item.name;
+                row.insertCell(2).textContent = item.age;
+            });
+            currentPageElement.textContent = currentPage;
+        }
+
+        filterInput.addEventListener('keyup', function() {
+            const filterValue = this.value.toLowerCase();
+            filteredData = data.filter(item => item.name.toLowerCase().includes(filterValue));
+            currentPage = 1;
+            renderTable();
+        });
+
+        pageSizeSelect.addEventListener('change', function() {
+            pageSize = parseInt(this.value, 10);
+            currentPage = 1;
+            renderTable();
+        });
+
+        document.querySelectorAll('th[data-sort]').forEach(th => th.addEventListener('click', function() {
+            const column = this.dataset.sort;
+            const isAsc = this.classList.toggle('asc');
+            filteredData.sort((a, b) => {
+                if (a[column] < b[column]) return isAsc ? -1 : 1;
+                if (a[column] > b[column]) return isAsc ? 1 : -1;
+                return 0;
+            });
+            renderTable();
+        }));
+
+        prevPageButton.addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                renderTable((currentPage - 1) * pageSize);
+            }
+        });
+
+        nextPageButton.addEventListener('click', () => {
+            if (currentPage * pageSize < filteredData.length) {
+                currentPage++;
+                renderTable((currentPage - 1) * pageSize);
+            }
+        });
+
+        renderTable();
+        setupControls();
+        renderCharts(); // Render the charts when data is loaded
+
+    });
+
+
+    function countAges(data) {
+    const counts = {};
+    data.forEach(item => {
+        counts[item.age] = (counts[item.age] || 0) + 1;
+    });
+    return counts;
+}
+
+// Helper function to count entries per category
+function countCategories(data) {
+    const categories = {};
+    data.forEach(item => {
+        categories[item.category] = (categories[item.category] || 0) + 1;
+    });
+    return categories;
+}
+
+// Render charts
+function renderCharts() {
+    const ageCounts = countAges(data);
+    const categoryCounts = countCategories(data);
+
+    // Render Age Distribution Chart
+    new Chart(document.getElementById('ageChart'), {
+        type: 'bar',
+        data: {
+            labels: Object.keys(ageCounts),
+            datasets: [{
+                label: 'Age Distribution',
+                data: Object.values(ageCounts),
+                backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+
+    // Render Category Distribution Chart (Assuming a pie chart for simplicity)
+    new Chart(document.getElementById('categoryChart'), {
+        type: 'pie',
+        data: {
+            labels: Object.keys(categoryCounts),
+            datasets: [{
+                data: Object.values(categoryCounts),
+                backgroundColor: [
+                    'rgba(255, 99, 132, 0.2)',
+                    'rgba(54, 162, 235, 0.2)',
+                    'rgba(255, 206, 86, 0.2)',
+                    'rgba(75, 192, 192, 0.2)',
+                    'rgba(153, 102, 255, 0.2)',
+                    'rgba(255, 159, 64, 0.2)'
+                ],
+                borderColor: [
+                    'rgba(255, 99, 132, 1)',
+                    'rgba(54, 162, 235, 1)',
+                    'rgba(255, 206, 86, 1)',
+                    'rgba(75, 192, 192, 1)',
+                    'rgba(153, 102, 255, 1)',
+                    'rgba(255, 159, 64, 1)'
+                ],
+                borderWidth: 1
+            }]
+        }
+    });
+}
+
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Table with Pagination, Filter, and Sort</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+        }
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        #filterInput, #pageSizeSelect {
+            width: calc(100% - 20px);
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        .nav-button {
+            cursor: pointer;
+            margin: 10px;
+        }
+        .chart-container {
+            width: 50%;
+            margin: 20px auto;
+        }
+    </style>
+</head>
+<body>
+
+<h2>Data Table with Advanced Controls</h2>
+<input type="text" id="filterInput" placeholder="Filter by name...">
+<select id="pageSizeSelect">
+    <option value="5">5 per page</option>
+    <option value="10" selected>10 per page</option>
+    <option value="20">20 per page</option>
+</select>
+
+<div>
+    <button class="nav-button" id="prevPage">Previous</button>
+    <button class="nav-button" id="nextPage">Next</button>
+    <span>Page <span id="currentPage">1</span></span>
+</div>
+
+<table id="data-table">
+    <thead>
+        <tr>
+            <th data-sort="id">ID</th>
+            <th data-sort="name">Name</th>
+            <th data-sort="age">Age</th>
+        </tr>
+    </thead>
+    <tbody id="table-body"></tbody>
+</table>
+
+<h2>Data Visualization and Table</h2>
+<div class="chart-container">
+    <canvas id="ageDistributionChart"></canvas>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    const data = [
+    { "id": 1, "name": "Alice", "age": 30 },
+        { "id": 2, "name": "Bob", "age": 25 },
+        { "id": 3, "name": "Charlie", "age": 35 },
+        { "id": 4, "name": "Diana", "age": 28 },
+        { "id": 5, "name": "Ethan", "age": 32 },
+        { "id": 6, "name": "Fiona", "age": 27 },
+        { "id": 7, "name": "George", "age": 40 },
+        { "id": 8, "name": "Hannah", "age": 29 },
+        { "id": 9, "name": "Ian", "age": 26 },
+        { "id": 10, "name": "Jessica", "age": 31 }
+        // ... rest of your data
+    ];
+
+    let currentPage = 1;
+    let pageSize = 10;
+    let filteredData = [...data];
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const tableBody = document.getElementById('table-body');
+        const filterInput = document.getElementById('filterInput');
+        const pageSizeSelect = document.getElementById('pageSizeSelect');
+        const currentPageElement = document.getElementById('currentPage');
+        const prevPageButton = document.getElementById('prevPage');
+        const nextPageButton = document.getElementById('nextPage');
+
+        function renderTable(startIndex = 0) {
+            tableBody.innerHTML = ''; // Clear current content
+            const endIndex = startIndex + pageSize;
+            filteredData.slice(startIndex, endIndex).forEach(item => {
+                const row = tableBody.insertRow();
+                row.insertCell(0).textContent = item.id;
+                row.insertCell(1).textContent = item.name;
+                row.insertCell(2).textContent = item.age;
+            });
+            currentPageElement.textContent = currentPage;
+        }
+
+        filterInput.addEventListener('keyup', function() {
+            const filterValue = this.value.toLowerCase();
+            filteredData = data.filter(item => item.name.toLowerCase().includes(filterValue));
+            currentPage = 1;
+            renderTable();
+        });
+
+        pageSizeSelect.addEventListener('change', function() {
+            pageSize = parseInt(this.value, 10);
+            currentPage = 1;
+            renderTable();
+        });
+
+        document.querySelectorAll('th[data-sort]').forEach(th => th.addEventListener('click', function() {
+            const column = this.dataset.sort;
+            const isAsc = this.classList.toggle('asc');
+            filteredData.sort((a, b) => {
+                if (a[column] < b[column]) return isAsc ? -1 : 1;
+                if (a[column] > b[column]) return isAsc ? 1 : -1;
+                return 0;
+            });
+            renderTable();
+        }));
+
+        prevPageButton.addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                renderTable((currentPage - 1) * pageSize);
+            }
+        });
+
+        nextPageButton.addEventListener('click', () => {
+            if (currentPage * pageSize < filteredData.length) {
+                currentPage++;
+                renderTable((currentPage - 1) * pageSize);
+            }
+        });
+
+        renderTable();
+        renderAgeChart(); // Render the chart when the DOM is loaded
+        
+    });
+
+
+    // Function to calculate age distribution
+    function calculateAgeDistribution() {
+        let ageGroups = {};
+        data.forEach(item => {
+            let ageGroup = Math.floor(item.age / 10) * 10; // Group by decades
+            ageGroups[ageGroup] = (ageGroups[ageGroup] || 0) + 1;
+        });
+        return {
+            labels: Object.keys(ageGroups).map(String),
+            counts: Object.values(ageGroups)
+        };
+    }
+
+    // Render Age Distribution Chart
+    function renderAgeChart() {
+        const ctx = document.getElementById('ageDistributionChart').getContext('2d');
+        const {labels, counts} = calculateAgeDistribution();
+
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Number of People',
+                    data: counts,
+                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Count'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Age Group'
+                        }
+                    }
+                }
+            }
+        });
+    }
+</script>
+
+</body>
+</html>
