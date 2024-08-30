@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dynamic Product Insights</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+    body { font-family: Arial, sans-serif; }
+    .insights { padding: 20px; }
+    .filters { background: #f9f9f9; padding: 10px; border-bottom: 1px solid #ccc; }
+    .chart-container { width: 100%; height: 300px; margin: 20px 0; }
+    .summary { padding: 10px; background: #f9f9f9; border-top: 1px solid #ccc; }
+    input[type="number"], select { width: 100%; margin-bottom: 10px; }
+</style>
+</head>
+<body>
+
+<div class="insights">
+    <div class="filters">
+        <label>Filter by Price:</label>
+        <input type="number" id="minPrice" placeholder="Min Price">
+        <input type="number" id="maxPrice" placeholder="Max Price">
+        <label>Filter by Category:</label>
+        <select id="categoryFilter">
+            <option value="">All Categories</option>
+            <!-- Dynamically populate categories -->
+        </select>
+        <label>Filter by Rating:</label>
+        <input type="number" id="minRating" placeholder="Minimum Rating">
+        <button onclick="updateVisualization()">Apply Filters</button>
+    </div>
+    
+    <div class="chart-container">
+        <canvas id="barChart"></canvas>
+    </div>
+    <div class="chart-container">
+        <canvas id="pieChart"></canvas>
+    </div>
+    <div class="chart-container">
+        <canvas id="radarChart"></canvas>
+    </div>
+
+    <div class="summary" id="summarySection">
+        <!-- Dynamic summary will be generated here -->
+    </div>
+</div>
+
+<script>
+const products = [
+{"productName": "Wireless Mouse", "category": "Electronics", "price": 25.99, "rating": 4.2, "stock": 150},
+    {"productName": "Bluetooth Speaker", "category": "Electronics", "price": 79.99, "rating": 4.7, "stock": 85},
+    {"productName": "Coffee Maker", "category": "Home Appliances", "price": 49.99, "rating": 4.3, "stock": 120},
+    {"productName": "Air Fryer", "category": "Home Appliances", "price": 89.99, "rating": 4.5, "stock": 70},
+    {"productName": "Yoga Mat", "category": "Sports", "price": 20.00, "rating": 4.1, "stock": 200},
+    {"productName": "Tennis Racket", "category": "Sports", "price": 119.99, "rating": 4.8, "stock": 50},
+    {"productName": "Smartphone", "category": "Electronics", "price": 599.99, "rating": 4.6, "stock": 95},
+    {"productName": "Vacuum Cleaner", "category": "Home Appliances", "price": 129.99, "rating": 4.4, "stock": 80},
+    {"productName": "Dumbbell Set", "category": "Sports", "price": 49.99, "rating": 4.3, "stock": 150},
+    {"productName": "Smart Watch", "category": "Electronics", "price": 199.99, "rating": 4.5, "stock": 100}
+];
+
+function filterProducts() {
+    return products.filter(product => {
+        const minPrice = document.getElementById('minPrice').value;
+        const maxPrice = document.getElementById('maxPrice').value;
+        const category = document.getElementById('categoryFilter').value;
+        const minRating = document.getElementById('minRating').value;
+        return (minPrice === "" || product.price >= minPrice) &&
+               (maxPrice === "" || product.price <= maxPrice) &&
+               (category === "" || product.category === category) &&
+               (minRating === "" || product.rating >= minRating);
+    });
+}
+
+function updateVisualization() {
+    const filteredProducts = filterProducts();
+    const avgPrices = calculateAveragePrices(filteredProducts);
+    const stockByCategory = calculateStockByCategory(filteredProducts);
+    const topRated = findTopRated(filteredProducts);
+
+    createBarChart(document.getElementById('barChart'), Object.keys(avgPrices), Object.values(avgPrices));
+    createPieChart(document.getElementById('pieChart'), Object.keys(stockByCategory), Object.values(stockByCategory));
+    createRadarChart(document.getElementById('radarChart'), topRated.map(product => product.productName), topRated.map(product => product.rating));
+
+    updateSummary(filteredProducts, avgPrices, stockByCategory, topRated);
+}
+
+
+function calculateStockByCategory(products) {
+    const stockByCategory = {};
+    products.forEach(product => {
+        stockByCategory[product.category] = (stockByCategory[product.category] || 0) + product.stock;
+    });
+    return stockByCategory;
+}
+
+// Function to calculate average price by category
+function calculateAveragePrices(products) {
+    const categorySums = {};
+    const categoryCounts = {};
+    products.forEach(product => {
+        if (!categorySums[product.category]) {
+            categorySums[product.category] = 0;
+            categoryCounts[product.category] = 0;
+        }
+        categorySums[product.category] += product.price;
+        categoryCounts[product.category]++;
+    });
+    const averages = {};
+    for (let category in categorySums) {
+        averages[category] = (categorySums[category] / categoryCounts[category]).toFixed(2);
+    }
+    return averages;
+}
+// Function to find top 3 highest-rated products
+function findTopRated(products) {
+    const sortedProducts = products.sort((a, b) => b.rating - a.rating);
+    return sortedProducts.slice(0, 3);
+}
+
+// Function to find the category with the most products in stock
+function findMostStockedCategory(products) {
+    const stockByCategory = {};
+    products.forEach(product => {
+        stockByCategory[product.category] = (stockByCategory[product.category] || 0) + product.stock;
+    });
+    let maxStockCategory;
+    let maxStock = 0;
+    for (let category in stockByCategory) {
+        if (stockByCategory[category] > maxStock) {
+            maxStock = stockByCategory[category];
+            maxStockCategory = category;
+        }
+    }
+    return maxStockCategory;
+}
+
+function createBarChart(ctx, labels, data) {
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Average Price',
+                data: data,
+                backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+function createPieChart(ctx, labels, data) {
+    new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: ['red', 'green', 'blue', 'yellow', 'purple'],
+            }]
+        }
+    });
+}
+
+function createRadarChart(ctx, labels, data) {
+    new Chart(ctx, {
+        type: 'radar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Ratings',
+                data: data,
+                backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                borderColor: 'rgba(255, 99, 132, 1)',
+                pointBackgroundColor: 'rgba(255, 99, 132, 1)',
+            }]
+        }
+    });
+}
+
+
+function updateSummary(products, avgPrices, stockByCategory, topRated) {
+    const summarySection = document.getElementById('summarySection');
+    let summary = 'Summary of Insights:<br>';
+    summary += `Total Products: ${products.length}<br>`;
+    summary += `Average Price Across Categories: ${Object.entries(avgPrices).map(([category, price]) => `${category}: $${price}`).join(', ')}<br>`;
+    summary += `Stock Distribution: ${Object.entries(stockByCategory).map(([category, stock]) => `${category}: ${stock}`).join(', ')}<br>`;
+    summary += `Top Rated Products: ${topRated.map(product => `${product.productName} (${product.rating})`).join(', ')}<br>`;
+    summarySection.innerHTML = summary;
+}
+
+// Initial setup
+document.getElementById('categoryFilter').innerHTML += products.reduce((acc, current) => {
+    if (!acc.includes(current.category)) {
+        acc.push(current.category);
+        return acc;
+    }
+    return acc;
+}, []).map(category => `<option value="${category}">${category}</option>`).join('');
+
+updateVisualization();
+
+</script>
+
+</body>
+</html>
