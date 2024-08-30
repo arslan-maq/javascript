@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Article Explorer</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .filter-container { margin-bottom: 20px; }
+        #articles-list { list-style-type: none; padding: 0; }
+        .article-item { background: #f9f9f9; margin-bottom: 10px; padding: 10px; border-left: 4px solid #007BFF; }
+    </style>
+</head>
+<body>
+
+<div class="filter-container">
+    <input type="text" id="dateRange" placeholder="Select Date Range">
+    <select id="authorFilter" multiple>
+        <!-- Options will be populated dynamically -->
+    </select>
+    <select id="topicFilter" multiple>
+        <!-- Options will be populated dynamically -->
+    </select>
+    <button onclick="applyFilters()">Apply Filters</button>
+</div>
+
+<ul id="articles-list"></ul>
+
+<script>
+    const articles = [
+    { id: 1, title: "Exploring Quantum Computing", author: "Alice Johnson", topic: "Quantum Computing", date: "2024-08-15" },
+    { id: 2, title: "Advancements in AI Technology", author: "Bob Smith", topic: "Artificial Intelligence", date: "2024-07-20" },
+    { id: 3, title: "Understanding Blockchain", author: "Charlie Davis", topic: "Blockchain", date: "2024-06-10" },
+    { id: 4, title: "The Future of Renewable Energy", author: "Dana Lee", topic: "Renewable Energy", date: "2024-05-25" },
+    { id: 5, title: "Deep Learning Techniques", author: "Eve Miller", topic: "Machine Learning", date: "2024-08-01" },
+    { id: 6, title: "Introduction to Data Science", author: "Frank White", topic: "Data Science", date: "2024-07-15" },
+    { id: 7, title: "Cybersecurity Best Practices", author: "Grace Clark", topic: "Cybersecurity", date: "2024-06-05" },
+    { id: 8, title: "The Evolution of Internet Protocols", author: "Henry Martin", topic: "Networking", date: "2024-08-10" },
+    { id: 9, title: "Machine Learning in Healthcare", author: "Ivy Turner", topic: "Healthcare", date: "2024-07-25" },
+    { id: 10, title: "Augmented Reality and Its Applications", author: "Jack Wilson", topic: "Augmented Reality", date: "2024-06-30" }
+];
+
+    // Populate filters
+    const authors = [...new Set(articles.map(a => a.author))].sort();
+    const topics = [...new Set(articles.map(a => a.topic))].sort();
+    authors.forEach(author => {
+        document.getElementById('authorFilter').innerHTML += `<option>${author}</option>`;
+    });
+    topics.forEach(topic => {
+        document.getElementById('topicFilter').innerHTML += `<option>${topic}</option>`;
+    });
+
+    // Initialize date range picker
+    flatpickr("#dateRange", {
+        mode: "range",
+        dateFormat: "Y-m-d",
+        onClose: function(selectedDates, dateStr, instance) {
+            // Trigger filter when dates are selected
+            applyFilters();
+        }
+    });
+
+    function applyFilters() {
+        const selectedAuthors = Array.from(document.getElementById('authorFilter').selectedOptions).map(option => option.value);
+        const selectedTopics = Array.from(document.getElementById('topicFilter').selectedOptions).map(option => option.value);
+        const dateRange = document.getElementById('dateRange').value.split(' to ');
+
+        let filteredArticles = articles.filter(article => {
+            const dateCheck = dateRange.length === 2 ? 
+                (article.date >= dateRange[0] && article.date <= dateRange[1]) : true;
+            const authorCheck = selectedAuthors.length > 0 ? selectedAuthors.includes(article.author) : true;
+            const topicCheck = selectedTopics.length > 0 ? selectedTopics.includes(article.topic) : true;
+            
+            return dateCheck && authorCheck && topicCheck;
+        });
+
+        displayArticles(filteredArticles);
+    }
+
+    function displayArticles(articlesToDisplay) {
+        const list = document.getElementById('articles-list');
+        list.innerHTML = '';
+        articlesToDisplay.forEach(article => {
+            const li = document.createElement('li');
+            li.className = 'article-item';
+            li.textContent = `${article.title} by ${article.author} - ${article.topic} (${article.date})`;
+            list.appendChild(li);
+        });
+    }
+
+    // Initial display
+    displayArticles(articles);
+</script>
+
+</body>
+</html>

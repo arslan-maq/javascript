@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Article Explorer</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js@2.9.4/dist/Chart.min.css">
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .filters, .articles { padding: 20px; }
+        .filter { margin-right: 20px; }
+        #articlesList { list-style: none; padding: 0; }
+        #articlesList li { padding: 10px; border-bottom: 1px solid #ccc; }
+        #chart { width: 400px; height: 200px; }
+    </style>
+</head>
+<body>
+    <div class="filters">
+        <label>From: <input type="date" id="fromDate"></label>
+        <label>To: <input type="date" id="toDate"></label>
+        <select id="authorSelect" multiple></select>
+        <select id="topicSelect" multiple></select>
+        <button onclick="applyFilters()">Apply Filters</button>
+    </div>
+    <div class="articles">
+        <ul id="articlesList"></ul>
+    </div>
+    <canvas id="chart" width="400" height="200"></canvas>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        const articles =  [
+    { id: 1, title: "Exploring Quantum Computing", author: "Alice Johnson", topic: "Quantum Computing", date: "2024-08-15" },
+    { id: 2, title: "Advancements in AI Technology", author: "Bob Smith", topic: "Artificial Intelligence", date: "2024-07-20" },
+    { id: 3, title: "Understanding Blockchain", author: "Charlie Davis", topic: "Blockchain", date: "2024-06-10" },
+    { id: 4, title: "The Future of Renewable Energy", author: "Dana Lee", topic: "Renewable Energy", date: "2024-05-25" },
+    { id: 5, title: "Deep Learning Techniques", author: "Eve Miller", topic: "Machine Learning", date: "2024-08-01" },
+    { id: 6, title: "Introduction to Data Science", author: "Frank White", topic: "Data Science", date: "2024-07-15" },
+    { id: 7, title: "Cybersecurity Best Practices", author: "Grace Clark", topic: "Cybersecurity", date: "2024-06-05" },
+    { id: 8, title: "The Evolution of Internet Protocols", author: "Henry Martin", topic: "Networking", date: "2024-08-10" },
+    { id: 9, title: "Machine Learning in Healthcare", author: "Ivy Turner", topic: "Healthcare", date: "2024-07-25" },
+    { id: 10, title: "Augmented Reality and Its Applications", author: "Jack Wilson", topic: "Augmented Reality", date: "2024-06-30" }
+];
+        const authorSelect = document.getElementById('authorSelect');
+        const topicSelect = document.getElementById('topicSelect');
+        const fromDateInput = document.getElementById('fromDate');
+        const toDateInput = document.getElementById('toDate');
+        const articlesList = document.getElementById('articlesList');
+        const chartCanvas = document.getElementById('chart');
+
+        let chartInstance;
+
+        function populateSelects() {
+            const authors = [...new Set(articles.map(article => article.author))].sort();
+            const topics = [...new Set(articles.map(article => article.topic))].sort();
+            authors.forEach(author => authorSelect.innerHTML += `<option>${author}</option>`);
+            topics.forEach(topic => topicSelect.innerHTML += `<option>${topic}</option>`);
+        }
+
+        function applyFilters() {
+            const fromDate = fromDateInput.value;
+            const toDate = toDateInput.value;
+            const selectedAuthors = Array.from(authorSelect.selectedOptions).map(option => option.value);
+            const selectedTopics = Array.from(topicSelect.selectedOptions).map(option => option.value);
+
+            const filteredArticles = articles.filter(article => {
+                const dateCondition = (!fromDate || article.date >= fromDate) && (!toDate || article.date <= toDate);
+                const authorCondition = !selectedAuthors.length || selectedAuthors.includes(article.author);
+                const topicCondition = !selectedTopics.length || selectedTopics.includes(article.topic);
+                return dateCondition && authorCondition && topicCondition;
+            });
+
+            displayArticles(filteredArticles);
+            updateChart(filteredArticles);
+        }
+
+        function displayArticles(articlesToDisplay) {
+            articlesList.innerHTML = '';
+            articlesToDisplay.forEach(article => {
+                const li = document.createElement('li');
+                li.textContent = `${article.title} by ${article.author} on ${article.date}`;
+                articlesList.appendChild(li);
+            });
+        }
+
+        function updateChart(articles) {
+            if (chartInstance) chartInstance.destroy();
+            const topicCounts = articles.reduce((acc, article) => {
+                acc[article.topic] = (acc[article.topic] || 0) + 1;
+                return acc;
+            }, {});
+
+            chartInstance = new Chart(chartCanvas, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(topicCounts),
+                    datasets: [{
+                        label: 'Number of Articles by Topic',
+                        data: Object.values(topicCounts),
+                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                        borderColor: 'rgba(255,99,132,1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        populateSelects();
+        displayArticles(articles);
+        updateChart(articles);
+    </script>
+</body>
+</html>
