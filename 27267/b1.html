@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Product Analysis</title>
+    <script src="https://cdn.jsdelivr.net/npm/underscore@1.13.1/underscore-min.js"></script>
+</head>
+<body>
+
+<script>
+function analyzeProducts(products) {
+    let categoryStats = {};
+    let allProducts = _.sortBy(products, 'rating').reverse();
+    let topRatedProducts = allProducts.slice(0, 3);
+    let categoryStock = {};
+
+    // Process each product
+    products.forEach(product => {
+        // Average Price Calculation
+        if (!categoryStats[product.category]) {
+            categoryStats[product.category] = {sum: 0, count: 0, average: 0};
+        }
+        categoryStats[product.category].sum += product.price;
+        categoryStats[product.category].count += 1;
+        categoryStats[product.category].average = categoryStats[product.category].sum / categoryStats[product.category].count;
+
+        // Total Stock per Category
+        if (!categoryStock[product.category]) {
+            categoryStock[product.category] = 0;
+        }
+        categoryStock[product.category] += product.stock;
+    });
+
+    // Find category with most stock
+    let maxStockCategory = Object.keys(categoryStock).reduce((a, b) => categoryStock[a] > categoryStock[b] ? a : b);
+
+    // Output results
+    console.log('Average price by category:', categoryStats);
+    console.log('Top 3 highest-rated products:', topRatedProducts.map(p => `${p.productName} (${p.rating})`));
+    console.log('Category with most products in stock:', maxStockCategory, 'with', categoryStock[maxStockCategory], 'items');
+}
+
+// Example usage with your data
+let productData = [
+    {"productName": "Wireless Mouse", "category": "Electronics", "price": 25.99, "rating": 4.2, "stock": 150},
+    {"productName": "Bluetooth Speaker", "category": "Electronics", "price": 79.99, "rating": 4.7, "stock": 85},
+    {"productName": "Coffee Maker", "category": "Home Appliances", "price": 49.99, "rating": 4.3, "stock": 120},
+    {"productName": "Air Fryer", "category": "Home Appliances", "price": 89.99, "rating": 4.5, "stock": 70},
+    {"productName": "Yoga Mat", "category": "Sports", "price": 20.00, "rating": 4.1, "stock": 200},
+    {"productName": "Tennis Racket", "category": "Sports", "price": 119.99, "rating": 4.8, "stock": 50},
+    {"productName": "Smartphone", "category": "Electronics", "price": 599.99, "rating": 4.6, "stock": 95},
+    {"productName": "Vacuum Cleaner", "category": "Home Appliances", "price": 129.99, "rating": 4.4, "stock": 80},
+    {"productName": "Dumbbell Set", "category": "Sports", "price": 49.99, "rating": 4.3, "stock": 150},
+    {"productName": "Smart Watch", "category": "Electronics", "price": 199.99, "rating": 4.5, "stock": 100}
+];
+
+analyzeProducts(productData);
+</script>
+
+</body>
+</html>

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Product Insights</title>
+<style>
+    body { font-family: Arial, sans-serif; }
+    .insights { margin: 20px; padding: 20px; border: 1px solid #ccc; }
+    h2 { color: #333; }
+    ul { list-style: none; padding: 0; }
+    li { padding: 5px; }
+</style>
+</head>
+<body>
+
+<div class="insights">
+    <h2>Average Prices by Category:</h2>
+    <ul id="avgPrices"></ul>
+
+    <h2>Top 3 Highest-Rated Products:</h2>
+    <ul id="topRated"></ul>
+
+    <h2>Category with Most Products in Stock:</h2>
+    <p id="mostStocked"></p>
+</div>
+
+<script>
+const products = [
+    {"productName": "Wireless Mouse", "category": "Electronics", "price": 25.99, "rating": 4.2, "stock": 150},
+    {"productName": "Bluetooth Speaker", "category": "Electronics", "price": 79.99, "rating": 4.7, "stock": 85},
+    {"productName": "Coffee Maker", "category": "Home Appliances", "price": 49.99, "rating": 4.3, "stock": 120},
+    {"productName": "Air Fryer", "category": "Home Appliances", "price": 89.99, "rating": 4.5, "stock": 70},
+    {"productName": "Yoga Mat", "category": "Sports", "price": 20.00, "rating": 4.1, "stock": 200},
+    {"productName": "Tennis Racket", "category": "Sports", "price": 119.99, "rating": 4.8, "stock": 50},
+    {"productName": "Smartphone", "category": "Electronics", "price": 599.99, "rating": 4.6, "stock": 95},
+    {"productName": "Vacuum Cleaner", "category": "Home Appliances", "price": 129.99, "rating": 4.4, "stock": 80},
+    {"productName": "Dumbbell Set", "category": "Sports", "price": 49.99, "rating": 4.3, "stock": 150},
+    {"productName": "Smart Watch", "category": "Electronics", "price": 199.99, "rating": 4.5, "stock": 100}
+];
+
+// Function to calculate average price by category
+function calculateAveragePrices(products) {
+    const categorySums = {};
+    const categoryCounts = {};
+    products.forEach(product => {
+        if (!categorySums[product.category]) {
+            categorySums[product.category] = 0;
+            categoryCounts[product.category] = 0;
+        }
+        categorySums[product.category] += product.price;
+        categoryCounts[product.category]++;
+    });
+    const averages = {};
+    for (let category in categorySums) {
+        averages[category] = (categorySums[category] / categoryCounts[category]).toFixed(2);
+    }
+    return averages;
+}
+
+// Function to find top 3 highest-rated products
+function findTopRated(products) {
+    const sortedProducts = products.sort((a, b) => b.rating - a.rating);
+    return sortedProducts.slice(0, 3);
+}
+
+// Function to find the category with the most products in stock
+function findMostStockedCategory(products) {
+    const stockByCategory = {};
+    products.forEach(product => {
+        stockByCategory[product.category] = (stockByCategory[product.category] || 0) + product.stock;
+    });
+    let maxStockCategory;
+    let maxStock = 0;
+    for (let category in stockByCategory) {
+        if (stockByCategory[category] > maxStock) {
+            maxStock = stockByCategory[category];
+            maxStockCategory = category;
+        }
+    }
+    return maxStockCategory;
+}
+
+// Displaying insights
+document.getElementById('avgPrices').innerHTML = Object.entries(calculateAveragePrices(products)).map(([category, avgPrice]) => `<li>${category}: $${avgPrice}</li>`).join('');
+document.getElementById('topRated').innerHTML = findTopRated(products).map(product => `<li>${product.productName}: Rating ${product.rating}</li>`).join('');
+document.getElementById('mostStocked').textContent = `Category with most products in stock: ${findMostStockedCategory(products)}`;
+</script>
+
+</body>
+</html>
