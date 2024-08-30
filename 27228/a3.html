@@ -6,31 +6,107 @@
     <title>Article Explorer</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js@2.9.4/dist/Chart.min.css">
     <style>
-        body { font-family: Arial, sans-serif; }
-        .filters, .articles { padding: 20px; }
-        .filter { margin-right: 20px; }
-        #articlesList { list-style: none; padding: 0; }
-        #articlesList li { padding: 10px; border-bottom: 1px solid #ccc; }
-        #chart { width: 400px; height: 200px; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .filters {
+            background: #fff;
+            padding: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .filter {
+            margin: 10px 0;
+        }
+        select, input[type="date"] {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #5cb85c;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #4cae4c;
+        }
+        .charts {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-around;
+        }
+        .chart-container {
+            background: #fff;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin: 10px;
+            padding: 20px;
+            flex: 1 1 300px;
+        }
+        #articlesList {
+            background: #fff;
+            padding: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        #articlesList li {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            list-style-type: none;
+        }
+        @media(max-width: 768px) {
+            .charts {
+                flex-direction: column;
+            }
+            .chart-container {
+                width: auto;
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="filters">
-        <label>From: <input type="date" id="fromDate"></label>
-        <label>To: <input type="date" id="toDate"></label>
-        <select id="authorSelect" multiple></select>
-        <select id="topicSelect" multiple></select>
-        <button onclick="applyFilters()">Apply Filters</button>
+    <div class="container">
+        <div class="filters">
+            <div class="filter">
+                <label for="fromDate">From:</label>
+                <input type="date" id="fromDate">
+            </div>
+            <div class="filter">
+                <label for="toDate">To:</label>
+                <input type="date" id="toDate">
+            </div>
+            <select id="authorSelect" multiple></select>
+            <select id="topicSelect" multiple></select>
+            <button onclick="applyFilters()">Filter Articles</button>
+        </div>
+        
+        <div class="charts">
+            <div class="chart-container">
+                <h3>Articles by Topic</h3>
+                <canvas id="barChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>Topic Distribution</h3>
+                <canvas id="pieChart"></canvas>
+            </div>
+        </div>
+    
+        <div id="articlesList"></div>
     </div>
-    <div class="articles">
-        <ul id="articlesList"></ul>
-    </div>
-    <!-- <canvas id="chart" width="400" height="200"></canvas> -->
-
-    <div class="charts">
-        <canvas id="barChart"></canvas>
-        <canvas id="pieChart"></canvas>
-    </div>
+    
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         const articles =  [
@@ -52,8 +128,8 @@
         const articlesList = document.getElementById('articlesList');
         const chartCanvas = document.getElementById('chart');
         
-        const barChartCanvas = document.getElementById('barChart');
-        const pieChartCanvas = document.getElementById('pieChart');
+        // const barChartCanvas = document.getElementById('barChart');
+        // const pieChartCanvas = document.getElementById('pieChart');
 
         let chartInstance;
 
@@ -123,7 +199,7 @@
         displayArticles(articles);
         updateChart(articles);
 
-        let barChart, pieChart;
+        // let barChart, pieChart;
 
         function applyFilters() {
             const fromDate = fromDateInput.value;
@@ -153,7 +229,79 @@
                 return acc;
             }, {});
 
-            barChart = new Chart(barChartCanvas, {
+            // barChart = new Chart(barChartCanvas, {
+            //     type: 'bar',
+            //     data: {
+            //         labels: Object.keys(topicCounts),
+            //         datasets: [{
+            //             label: 'Articles per Topic',
+            //             data: Object.values(topicCounts),
+            //             backgroundColor: 'rgba(54, 162, 235, 0.2)',
+            //             borderColor: 'rgba(54, 162, 235, 1)',
+            //             borderWidth: 1
+            //         }]
+            //     },
+            //     options: {
+            //         scales: {
+            //             y: {
+            //                 beginAtZero: true
+            //             }
+            //         }
+            //     }
+            // });
+
+            const topicDist = Object.values(topicCounts);
+            // pieChart = new Chart(pieChartCanvas, {
+            //     type: 'pie',
+            //     data: {
+            //         labels: Object.keys(topicCounts),
+            //         datasets: [{
+            //             data: topicDist,
+            //             backgroundColor: [
+            //                 'rgba(255, 99, 132, 0.2)',
+            //                 'rgba(54, 162, 235, 0.2)',
+            //                 'rgba(255, 206, 86, 0.2)',
+            //                 // Add more colors if needed
+            //             ],
+            //             borderColor: [
+            //                 'rgba(255,99,132,1)',
+            //                 'rgba(54, 162, 235, 1)',
+            //                 'rgba(255, 206, 86, 1)',
+            //                 // Add more colors if needed
+            //             ],
+            //             borderWidth: 1
+            //         }]
+            //     }
+            // });
+        }
+
+        displayArticles(articles);
+        updateCharts(articles);
+
+
+        // Function to make chart interactive
+    function makeInteractive(chart, type) {
+        chart.options.onClick = function(evt, activeElements) {
+            if (activeElements.length > 0) {
+                const element = activeElements[0];
+                const label = chart.data.labels[element._index];
+                if (type === 'bar') {
+                    // For bar chart, filter by topic or author based on implementation
+                    topicSelect.value = label;
+                } else if (type === 'pie') {
+                    // For pie chart, select the topic or adjust filter accordingly
+                    topicSelect.value = label;
+                }
+                applyFilters();
+            }
+        };
+    }
+
+    // Initialize charts with interaction
+    const ctxBar = document.getElementById('barChart').getContext('2d');
+    const ctxPie = document.getElementById('pieChart').getContext('2d');
+
+    let barChart = new Chart(ctxBar, {
                 type: 'bar',
                 data: {
                     labels: Object.keys(topicCounts),
@@ -173,34 +321,29 @@
                     }
                 }
             });
-
-            const topicDist = Object.values(topicCounts);
-            pieChart = new Chart(pieChartCanvas, {
-                type: 'pie',
+    let pieChart = new Chart(ctxPie, {
+        type: 'bar',
                 data: {
                     labels: Object.keys(topicCounts),
                     datasets: [{
-                        data: topicDist,
-                        backgroundColor: [
-                            'rgba(255, 99, 132, 0.2)',
-                            'rgba(54, 162, 235, 0.2)',
-                            'rgba(255, 206, 86, 0.2)',
-                            // Add more colors if needed
-                        ],
-                        borderColor: [
-                            'rgba(255,99,132,1)',
-                            'rgba(54, 162, 235, 1)',
-                            'rgba(255, 206, 86, 1)',
-                            // Add more colors if needed
-                        ],
+                        label: 'Number of Articles by Topic',
+                        data: Object.values(topicCounts),
+                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                        borderColor: 'rgba(255,99,132,1)',
                         borderWidth: 1
                     }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
                 }
-            });
-        }
+    });
 
-        displayArticles(articles);
-        updateCharts(articles);
+    makeInteractive(barChart, 'bar');
+    makeInteractive(pieChart, 'pie');
     </script>
 </body>
 </html>

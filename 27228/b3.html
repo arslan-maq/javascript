@@ -6,12 +6,16 @@
     <title>Article Explorer</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js@2.9.4/dist/Chart.min.css">
     <style>
-        body { font-family: Arial, sans-serif; }
-        .filters, .articles { padding: 20px; }
-        .filter { margin-right: 20px; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .filters, .charts, .articles { padding: 20px; width: 100%; box-sizing: border-box; }
+        .filter { margin: 10px; display: inline-block; }
         #articlesList { list-style: none; padding: 0; }
-        #articlesList li { padding: 10px; border-bottom: 1px solid #ccc; }
-        #chart { width: 400px; height: 200px; }
+        #articlesList li { padding: 10px; border-bottom: 1px solid #eee; }
+        .chart-container { width: 50%; float: left; padding: 10px; box-sizing: border-box; }
+        @media only screen and (max-width: 600px) {
+            .chart-container { width: 100%; float: none; }
+        }
+        #barChart, #pieChart { width: 100%; height: 250px; display: block; }
     </style>
 </head>
 <body>
@@ -22,14 +26,21 @@
         <select id="topicSelect" multiple></select>
         <button onclick="applyFilters()">Apply Filters</button>
     </div>
-    <div class="articles">
-        <ul id="articlesList"></ul>
-    </div>
+   
     <!-- <canvas id="chart" width="400" height="200"></canvas> -->
 
     <div class="charts">
-        <canvas id="barChart"></canvas>
-        <canvas id="pieChart"></canvas>
+        <div class="chart-container">
+            <canvas id="barChart"></canvas>
+        </div>
+        <div class="chart-container">
+            <canvas id="pieChart"></canvas>
+        </div>
+    </div>
+
+
+    <div class="articles">
+        <ul id="articlesList"></ul>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
