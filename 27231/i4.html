@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leaflet Map with Curved Line and Marker Clustering</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css" />
+    <style>
+        #map {
+            height: 600px;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <h1>Leaflet Map with Curved Line and Marker Clustering</h1>
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
+    <script src="https://unpkg.com/leaflet-polylinedecorator/dist/leaflet.polylineDecorator.js"></script>
+    <script src="https://unpkg.com/leaflet-curve/leaflet.curve.js"></script>
+
+    <script>
+        // Initialize the map
+        var map = L.map('map').setView([51.505, -0.09], 13);
+
+        // Add OpenStreetMap tile layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+        }).addTo(map);
+
+        // Create a marker cluster group
+        var markers = L.markerClusterGroup();
+
+        // Add markers to the cluster group
+        var marker1 = L.marker([51.5, -0.09]).addTo(markers);
+        var marker2 = L.marker([51.51, -0.1]).addTo(markers);
+
+        // Add the marker cluster group to the map
+        map.addLayer(markers);
+
+        // Draw a curved line between the two points
+        var latlngs = [
+            [51.5, -0.09],
+            [51.51, -0.1]
+        ];
+
+        // Use Leaflet.curve to create a curved line (quadratic Bezier curve)
+        var path = L.curve([
+            'M', [51.5, -0.09],
+            'Q', [51.52, -0.15],
+            [51.51, -0.1]
+        ], {
+            color: 'blue',
+            weight: 3,
+            opacity: 0.7,
+        }).addTo(map);
+    </script>
+</body>
+</html>
