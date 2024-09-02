@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Educational Data Visualization</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .chart-container { width: 50%; margin: auto; }
+        .content-list { width: 80%; margin: 20px auto; }
+        .content-item { margin-bottom: 10px; padding: 10px; border-bottom: 1px solid #ccc; }
+    </style>
+</head>
+<body>
+    <div class="chart-container">
+        <canvas id="topicPieChart"></canvas>
+        <canvas id="contentTypeBarChart"></canvas>
+    </div>
+    <div class="content-list" id="contentList"></div>
+    <script>
+         const data = {
+  "articles": [
+    {
+      "id": 1,
+      "title": "The Evolution of Machine Learning",
+      "author": "Dr. Emma Brown",
+      "topic": "Machine Learning",
+      "date": "2024-09-01",
+      "content": "This article explores the development and advancements in machine learning technologies."
+    },
+    {
+      "id": 2,
+      "title": "Introduction to Quantum Computing",
+      "author": "Dr. John Smith",
+      "topic": "Quantum Computing",
+      "date": "2024-08-15",
+      "content": "An introductory guide to the principles and applications of quantum computing."
+    }
+  ],
+  "quizzes": [
+    {
+      "id": 1,
+      "title": "Basic Concepts of Artificial Intelligence",
+      "questions": [
+        {
+          "question": "What is the primary goal of artificial intelligence?",
+          "options": ["To simulate human intelligence", "To create robots", "To improve internet speed"],
+          "answer": "To simulate human intelligence"
+        },
+        {
+          "question": "Which of the following is a common application of AI?",
+          "options": ["Voice assistants", "Web browsers", "Text editors"],
+          "answer": "Voice assistants"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Artificial Intelligence Goal",
+      "questions": [
+        {
+          "question": "What is the secondary goal of artificial intelligence?",
+          "options": ["To simulate human intelligence", "To create robots", "To improve internet speed"],
+          "answer": "To simulate human intelligence"
+        },
+        {
+          "question": "Which of the following is a common application of AI?",
+          "options": ["Voice assistants", "Web browsers", "Text editors"],
+          "answer": "Voice assistants"
+        }
+      ]
+    }
+  ],
+  "multimedia": [
+    {
+      "id": 1,
+      "type": "video",
+      "title": "Understanding Blockchain Technology",
+      "url": "https://www.example.com/videos/blockchain.mp4",
+      "description": "A video explaining the fundamentals of blockchain technology."
+    },
+    {
+      "id": 2,
+      "type": "image",
+      "title": "History of Quantum Computing",
+      "url": "https://www.example.com/images/quantum-computing.jpg",
+      "description": "An infographic showcasing the history of quantum computing advancements."
+    }
+  ]
+};
+        const ctxPie = document.getElementById('topicPieChart').getContext('2d');
+        const ctxBar = document.getElementById('contentTypeBarChart').getContext('2d');
+        const contentList = document.getElementById('contentList');
+
+        function renderPieChart() {
+            const topics = data.articles.map(article => article.topic);
+            const topicCounts = topics.reduce((acc, current) => {
+                acc[current] = (acc[current] || 0) + 1;
+                return acc;
+            }, {});
+            new Chart(ctxPie, {
+                type: 'pie',
+                data: {
+                    labels: Object.keys(topicCounts),
+                    datasets: [{
+                        data: Object.values(topicCounts),
+                        backgroundColor: ['red', 'blue', 'green', 'yellow'],
+                    }]
+                },
+                options: {
+                    onClick: (event, elements) => {
+                        if (elements[0]) {
+                            const topic = elements[0]._model.label;
+                            filterContentByTopic(topic);
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderBarChart() {
+            const types = ['articles', 'quizzes', 'multimedia'];
+            const counts = types.map(type => data[type].length);
+            new Chart(ctxBar, {
+                type: 'bar',
+                data: {
+                    labels: types,
+                    datasets: [{
+                        label: 'Content Type',
+                        data: counts,
+                        backgroundColor: ['red', 'blue', 'green'],
+                    }]
+                }
+            });
+        }
+
+        function filterContentByTopic(topic) {
+            const filteredContent = data.articles.filter(article => article.topic === topic);
+            displayContent(filteredContent, 'articles');
+        }
+
+        function displayContent(content, type) {
+            contentList.innerHTML = '';
+            content.forEach(item => {
+                const element = document.createElement('div');
+                element.className = 'content-item';
+                element.innerHTML = `<h3>${item.title}</h3><p>by ${item.author || ''}</p>`;
+                contentList.appendChild(element);
+            });
+        }
+
+        renderPieChart();
+        renderBarChart();
+        displayContent(data.articles, 'articles');
+    </script>
+</body>
+</html>

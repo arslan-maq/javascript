@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Educational Data Widget</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.min.css">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
+        .widget { max-width: 1200px; margin: auto; }
+        .section { margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; }
+        canvas { max-width: 100%; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="widget">
+    <h1>Educational Explorer</h1>
+      <!-- Filtering Section -->
+      <div class="section" id="filterSection">
+        <h2>Filters</h2>
+        <form id="filterForm">
+            <label>Topic:</label>
+            <select id="topicFilter">
+                <option value="">All Topics</option>
+                <!-- Options will be populated dynamically -->
+            </select>
+            
+            <label>Author:</label>
+            <select id="authorFilter">
+                <option value="">All Authors</option>
+                <!-- Options will be populated dynamically -->
+            </select>
+            
+            <label>Date Range:</label>
+            <input type="date" id="startDateFilter"> to <input type="date" id="endDateFilter">
+            
+            <button type="submit">Apply Filters</button>
+        </form>
+        
+        <label>Search:</label>
+        <input type="search" id="searchBar" placeholder="Search articles, quizzes...">
+    </div>
+    <!-- Articles Section -->
+    <div class="section" id="articlesSection">
+        <h2>Articles</h2>
+        <div id="articleList"></div>
+    </div>
+
+    <!-- Quiz Section -->
+    <div class="section" id="quizSection">
+        <h2>Quizzes</h2>
+        <select id="quizSelect"></select>
+        <div id="quizArea" class="hidden"></div>
+    </div>
+
+    <!-- Multimedia Section -->
+    <div class="section" id="multimediaSection">
+        <h2>Multimedia</h2>
+        <div id="multimediaList"></div>
+    </div>
+
+  <!-- Settings Section -->
+  <div class="section" id="settingsSection">
+    <h2>Settings</h2>
+    <form id="settingsForm">
+        <label>Data Source:</label>
+        <select id="dataSource">
+            <option value="local">Local Data</option>
+            <option value="api">Remote API</option>
+        </select>
+
+        <label>Visualization Type:</label>
+        <select id="visualizationType">
+            <option value="pie">Pie Chart</option>
+            <option value="bar">Bar Chart</option>
+        </select>
+
+        <!-- Placeholder for more settings like theme selection, etc. -->
+
+        <button type="submit">Apply Settings</button>
+    </form>
+
+    <button id="toggleLayoutMode">Toggle Layout Mode</button>
+    <div id="layoutConfig" style="display: none;">
+        <p>Drag and drop widgets to customize layout:</p>
+        
+    <div class="section">
+        <h2>Data Visualization</h2>
+        <canvas id="topicChart" width="400" height="200"></canvas>
+    </div>
+    </div>
+</div>
+
+
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.min.js"></script>
+<script>
+     const data = {
+  "articles": [
+    {
+      "id": 1,
+      "title": "The Evolution of Machine Learning",
+      "author": "Dr. Emma Brown",
+      "topic": "Machine Learning",
+      "date": "2024-09-01",
+      "content": "This article explores the development and advancements in machine learning technologies."
+    },
+    {
+      "id": 2,
+      "title": "Introduction to Quantum Computing",
+      "author": "Dr. John Smith",
+      "topic": "Quantum Computing",
+      "date": "2024-08-15",
+      "content": "An introductory guide to the principles and applications of quantum computing."
+    }
+  ],
+  "quizzes": [
+    {
+      "id": 1,
+      "title": "Basic Concepts of Artificial Intelligence",
+      "questions": [
+        {
+          "question": "What is the primary goal of artificial intelligence?",
+          "options": ["To simulate human intelligence", "To create robots", "To improve internet speed"],
+          "answer": "To simulate human intelligence"
+        },
+        {
+          "question": "Which of the following is a common application of AI?",
+          "options": ["Voice assistants", "Web browsers", "Text editors"],
+          "answer": "Voice assistants"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Artificial Intelligence Goal",
+      "questions": [
+        {
+          "question": "What is the secondary goal of artificial intelligence?",
+          "options": ["To simulate human intelligence", "To create robots", "To improve internet speed"],
+          "answer": "To simulate human intelligence"
+        },
+        {
+          "question": "Which of the following is a common application of AI?",
+          "options": ["Voice assistants", "Web browsers", "Text editors"],
+          "answer": "Voice assistants"
+        }
+      ]
+    }
+  ],
+  "multimedia": [
+    {
+      "id": 1,
+      "type": "video",
+      "title": "Understanding Blockchain Technology",
+      "url": "https://www.example.com/videos/blockchain.mp4",
+      "description": "A video explaining the fundamentals of blockchain technology."
+    },
+    {
+      "id": 2,
+      "type": "image",
+      "title": "History of Quantum Computing",
+      "url": "https://www.example.com/images/quantum-computing.jpg",
+      "description": "An infographic showcasing the history of quantum computing advancements."
+    }
+  ]
+};
+    // Populate Articles
+    const articleList = document.getElementById('articleList');
+    data.articles.forEach(article => {
+        const div = document.createElement('div');
+        div.innerHTML = `<h3>${article.title}</h3><p>By ${article.author} on ${article.date}</p>`;
+        div.onclick = () => alert(article.content); // Simple alert for content display
+        articleList.appendChild(div);
+    });
+
+    // Quiz functionality
+    const quizSelect = document.getElementById('quizSelect');
+    const quizArea = document.getElementById('quizArea');
+    data.quizzes.forEach(quiz => {
+        const option = document.createElement('option');
+        option.value = quiz.id;
+        option.textContent = quiz.title;
+        quizSelect.appendChild(option);
+    });
+
+    quizSelect.onchange = function() {
+        const quiz = data.quizzes.find(q => q.id == this.value);
+        if (quiz) {
+            quizArea.innerHTML = ''; // Clear previous quiz
+            quizArea.classList.remove('hidden');
+            quiz.questions.forEach((q, index) => {
+                const qDiv = document.createElement('div');
+                qDiv.innerHTML = `<p>${q.question}</p>`;
+                q.options.forEach(opt => {
+                    const label = document.createElement('label');
+                    label.innerHTML = `<input type="radio" name="q${index}" value="${opt}"> ${opt}<br>`;
+                    qDiv.appendChild(label);
+                });
+                quizArea.appendChild(qDiv);
+            });
+            // Add submit button logic here
+        }
+    };
+
+    // Multimedia display
+    const multimediaList = document.getElementById('multimediaList');
+    data.multimedia.forEach(item => {
+        const mediaDiv = document.createElement('div');
+        mediaDiv.innerHTML = `<h3>${item.title}</h3>`;
+        mediaDiv.onclick = function() {
+            if (item.type === 'video') {
+                window.open(item.url, '_blank'); // Open video in new tab
+            } else if (item.type === 'image') {
+                const img = document.createElement('img');
+                img.src = item.url;
+                img.style.maxWidth = '100%';
+                mediaDiv.appendChild(img);
+            }
+        };
+        multimediaList.appendChild(mediaDiv);
+    });
+
+    // Chart for topics
+    const ctx = document.getElementById('topicChart').getContext('2d');
+    const topicCount = data.articles.reduce((acc, article) => {
+        acc[article.topic] = (acc[article.topic] || 0) + 1;
+        return acc;
+    }, {});
+    
+    new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: Object.keys(topicCount),
+            datasets: [{
+                data: Object.values(topicCount),
+                backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF'],
+            }]
+        },
+        options: {
+            responsive: true,
+            title: {
+                display: true,
+                text: 'Distribution of Article Topics'
+            }
+        }
+    });
+
+
+    const uniqueTopics = [...new Set(data.articles.map(article => article.topic))];
+    const topicFilter = document.getElementById('topicFilter');
+    uniqueTopics.forEach(topic => {
+        const option = document.createElement('option');
+        option.value = topic;
+        option.textContent = topic;
+        topicFilter.appendChild(option);
+    });
+
+    const uniqueAuthors = [...new Set(data.articles.map(article => article.author))];
+    const authorFilter = document.getElementById('authorFilter');
+    uniqueAuthors.forEach(author => {
+        const option = document.createElement('option');
+        option.value = author;
+        option.textContent = author;
+        authorFilter.appendChild(option);
+    });
+
+    // Filtering functionality
+    const filterForm = document.getElementById('filterForm');
+    filterForm.addEventListener('submit', function(event) {
+        event.preventDefault();
+
+        const topic = document.getElementById('topicFilter').value;
+        const author = document.getElementById('authorFilter').value;
+        const startDate = document.getElementById('startDateFilter').value;
+        const endDate = document.getElementById('endDateFilter').value;
+
+        const filteredArticles = data.articles.filter(article => {
+            const matchesTopic = topic === '' || article.topic === topic;
+            const matchesAuthor = author === '' || article.author === author;
+            const dateInRange = (!startDate || article.date >= startDate) && (!endDate || article.date <= endDate);
+            return matchesTopic && matchesAuthor && dateInRange;
+        });
+
+        // Update the articles list with filtered results
+        updateArticlesList(filteredArticles);
+    });
+
+    // Search functionality
+    const searchBar = document.getElementById('searchBar');
+    searchBar.addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase();
+        const searchResults = data.articles.filter(article => 
+            article.title.toLowerCase().includes(searchTerm) || 
+            article.author.toLowerCase().includes(searchTerm) || 
+            article.content.toLowerCase().includes(searchTerm)
+        );
+
+        updateArticlesList(searchResults);
+    });
+
+    function updateArticlesList(articles) {
+        const articleList = document.getElementById('articleList');
+        articleList.innerHTML = ''; // Clear the list
+        articles.forEach(article => {
+            const div = document.createElement('div');
+            div.innerHTML = `<h3>${article.title}</h3><p>By ${article.author} on ${article.date}</p>`;
+            div.onclick = () => alert(article.content);
+            articleList.appendChild(div);
+        });
+    }
+    
+    // Initial list population
+    updateArticlesList(data.articles);
+</script>
+<script>
+    // Assume existing data and functions...
+
+    const settingsForm = document.getElementById('settingsForm');
+    const toggleLayoutButton = document.getElementById('toggleLayoutMode');
+    const layoutConfigDiv = document.getElementById('layoutConfig');
+    let isLayoutMode = false;
+
+    // Settings Form Submission
+    settingsForm.addEventListener('submit', function(event) {
+        event.preventDefault();
+        const dataSource = document.getElementById('dataSource').value;
+        const visualizationType = document.getElementById('visualizationType').value;
+
+        // Implement logic to switch data source or visualization type
+        // For example, fetch data from API or change chart type
+        if (dataSource === 'api') {
+            // Fetch data from API
+        }
+        if (visualizationType === 'bar') {
+            // Update chart type to bar
+        }
+    });
+
+    // Toggle Layout Mode
+    toggleLayoutButton.addEventListener('click', function() {
+        isLayoutMode = !isLayoutMode;
+        layoutConfigDiv.style.display = isLayoutMode ? 'block' : 'none';
+        this.textContent = isLayoutMode ? 'Save Layout' : 'Toggle Layout Mode';
+
+        if (isLayoutMode) {
+            // Enable drag-and-drop functionality
+            makeWidgetsDraggable();
+        } else {
+            // Save layout or reset
+        }
+    });
+
+    function makeWidgetsDraggable() {
+        const sections = document.querySelectorAll('.section:not(#settingsSection)');
+        sections.forEach(section => {
+            section.draggable = true;
+            section.addEventListener('dragstart', function(event) {
+                event.dataTransfer.setData('text', event.target.id);
+            });
+
+            layoutConfigDiv.addEventListener('dragover', function(event) {
+                event.preventDefault();
+            });
+
+            layoutConfigDiv.addEventListener('drop', function(event) {
+                event.preventDefault();
+                const id = event.dataTransfer.getData('text');
+                const section = document.getElementById(id);
+                layoutConfigDiv.appendChild(section);
+            });
+        });
+    }
+</script>
+</body>
+</html>
