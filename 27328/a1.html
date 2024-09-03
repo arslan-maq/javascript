@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Historical Document Visualizer</title>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        #timeline, #networkGraph, #themeAnalysis { 
+            border: 1px solid #ccc; 
+            margin: 20px 0; 
+            padding: 10px; 
+        }
+    </style>
+</head>
+<body>
+
+<div id="controls">
+    <label>Filter by Theme: </label>
+    <select id="themeFilter"></select>
+</div>
+
+<div id="timeline"></div>
+<div id="networkGraph"></div>
+<div id="themeAnalysis"></div>
+
+<script>
+// Data from your JSON structure
+const documents = [
+            {
+                id: 1,
+                title: "The Treaty of Versailles",
+                author: "Unknown",
+                date: "1919-06-28",
+                themes: ["World War I", "Peace Treaty", "International Relations"],
+                historical_figures: ["Woodrow Wilson", "David Lloyd George", "Georges Clemenceau"],
+                summary: "The Treaty of Versailles was one of the peace treaties that ended World War I.",
+                related_documents: [2, 3]
+            },
+            {
+                id: 2,
+                title: "The League of Nations",
+                author: "Woodrow Wilson",
+                date: "1920-01-10",
+                themes: ["International Organizations", "Peacekeeping"],
+                historical_figures: ["Woodrow Wilson"],
+                summary: "The League of Nations was an international organization founded after World War I to maintain world peace.",
+                related_documents: [1, 4]
+            },
+            {
+                id: 3,
+                title: "The Weimar Constitution",
+                author: "Friedrich Ebert",
+                date: "1919-08-11",
+                themes: ["German History", "Political Systems"],
+                historical_figures: ["Friedrich Ebert"],
+                summary: "The Weimar Constitution was the constitution that governed Germany during the Weimar Republic.",
+                related_documents: [1]
+            },
+            {
+                id: 4,
+                title: "The Atlantic Charter",
+                author: "Franklin D. Roosevelt",
+                date: "1941-08-14",
+                themes: ["World War II", "Allied Powers", "International Relations"],
+                historical_figures: ["Franklin D. Roosevelt", "Winston Churchill"],
+                summary: "The Atlantic Charter was a pivotal policy statement issued during World War II, outlining the Allied goals for the post-war world.",
+                related_documents: [2, 5]
+            },
+            {
+                id: 5,
+                title: "The United Nations Charter",
+                author: "United Nations",
+                date: "1945-10-24",
+                themes: ["International Organizations", "Peacekeeping", "Global Governance"],
+                historical_figures: ["Harry S. Truman"],
+                summary: "The United Nations Charter is the foundational treaty of the United Nations, an international organization established to promote peace and security.",
+                related_documents: [4]
+            }
+        ];
+
+
+// Populate theme filter dropdown
+const themeFilter = document.getElementById('themeFilter');
+documents.forEach(doc => {
+    doc.themes.forEach(theme => {
+        if (!themeFilter.innerHTML.includes(theme)) {
+            themeFilter.innerHTML += `<option value="${theme}">${theme}</option>`;
+        }
+    });
+});
+
+// Time-based Visualization
+function drawTimeline() {
+    let svg = d3.select("#timeline").append("svg").attr("width", 800).attr("height", 200);
+    let timeScale = d3.scaleTime()
+        .domain(d3.extent(documents, d => new Date(d.date)))
+        .range([50, 750]);
+    
+    svg.selectAll("circle")
+       .data(documents)
+       .enter().append("circle")
+       .attr("cx", d => timeScale(new Date(d.date)))
+       .attr("cy", 100)
+       .attr("r", 5)
+       .attr("fill", "blue")
+       .on("click", function(d) {
+           alert(d.title + "\n" + d.summary);
+       });
+}
+
+// Network Graph for relationships
+function drawNetworkGraph() {
+    let nodes = documents.map(doc => ({id: doc.id, group: doc.themes[0]}));
+    let links = documents.reduce((acc, doc) => {
+        doc.related_documents.forEach(related => {
+            acc.push({source: doc.id, target: related});
+        });
+        return acc;
+    }, []);
+
+    let svg = d3.select("#networkGraph").append("svg").attr("width", 800).attr("height", 400);
+    let simulation = d3.forceSimulation(nodes)
+        .force("link", d3.forceLink(links).id(d => d.id))
+        .force("charge", d3.forceManyBody())
+        .force("center", d3.forceCenter(400, 200));
+
+    let link = svg.append("g")
+        .selectAll("line")
+        .data(links)
+        .enter().append("line");
+
+    let node = svg.append("g")
+        .selectAll("circle")
+        .data(nodes)
+        .enter().append("circle")
+        .attr("r", 10)
+        .call(d3.drag()
+            .on("start", dragstarted)
+            .on("drag", dragged)
+            .on("end", dragended));
+
+    simulation
+        .nodes(nodes)
+        .on("tick", ticked);
+
+    function ticked() {
+        link.attr("x1", d => d.source.x)
+            .attr("y1", d => d.source.y)
+            .attr("x2", d => d.target.x)
+            .attr("y2", d => d.target.y);
+
+        node.attr("cx", d => d.x)
+            .attr("cy", d => d.y);
+    }
+
+    function dragstarted(event, d) {
+        if (!event.active) simulation.alphaTarget(0.3).restart();
+        d.fx = d.x; d.fy = d.y;
+    }
+
+    function dragged(event, d) {
+        d.fx = event.x; d.fy = event.y;
+    }
+
+    function dragended(event, d) {
+        if (!event.active) simulation.alphaTarget(0);
+        d.fx = null; d.fy = null;
+    }
+}
+
+// Initial drawing
+drawTimeline();
+drawNetworkGraph();
+
+// Event listener for theme filtering could be added here to redraw visualizations based on selected theme
+</script>
+
+</body>
+</html>

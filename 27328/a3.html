@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historical Document Explorer</title>
+    <style>
+         body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        #timeline, #networkGraph, #themesAnalysis {
+            width: 100%;
+            height: auto;
+            margin: 20px 0;
+            display: block;
+            box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
+            background: white;
+            border-radius: 8px;
+        }
+        .document-info {
+            padding: 20px;
+            background: white;
+            margin-top: 20px;
+            box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
+            border-radius: 8px;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        /* Responsive design */
+        @media only screen and (max-width: 768px) {
+            #timeline, #networkGraph, #themesAnalysis {
+                height: 250px;
+            }
+        }
+        @media only screen and (max-width: 480px) {
+            #timeline, #networkGraph, #themesAnalysis {
+                height: 200px;
+            }
+            .document-info {
+                font-size: 0.9em;
+            }
+        }
+        /* Additional styling for better UI/UX */
+        .chart-container {
+            position: relative;
+            margin: auto;
+        }
+        .chart-tooltip {
+            position: absolute;
+            text-align: center;
+            padding: .5rem;
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Historical Document Explorer</h1>
+    <div class="chart-container">
+        <canvas id="timeline"></canvas>
+        <div class="chart-tooltip" id="timeline-tooltip"></div>
+    </div>
+    <div class="chart-container">
+        <div id="networkGraph"></div>
+        <div class="chart-tooltip" id="network-tooltip"></div>
+    </div>
+    <div class="chart-container">
+        <canvas id="themesAnalysis"></canvas>
+        <div class="chart-tooltip" id="themes-tooltip"></div>
+    </div>
+    <div id="documentInfo" class="document-info"></div>
+
+    <!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- Include date adapter (e.g., date-fns) -->
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@1.2.0"></script>
+
+    <script>
+        const documents = [
+            {
+                id: 1,
+                title: "The Treaty of Versailles",
+                author: "Unknown",
+                date: "1919-06-28",
+                themes: ["World War I", "Peace Treaty", "International Relations"],
+                historical_figures: ["Woodrow Wilson", "David Lloyd George", "Georges Clemenceau"],
+                summary: "The Treaty of Versailles was one of the peace treaties that ended World War I.",
+                related_documents: [2, 3]
+            },
+            {
+                id: 2,
+                title: "The League of Nations",
+                author: "Woodrow Wilson",
+                date: "1920-01-10",
+                themes: ["International Organizations", "Peacekeeping"],
+                historical_figures: ["Woodrow Wilson"],
+                summary: "The League of Nations was an international organization founded after World War I to maintain world peace.",
+                related_documents: [1, 4]
+            },
+            {
+                id: 3,
+                title: "The Weimar Constitution",
+                author: "Friedrich Ebert",
+                date: "1919-08-11",
+                themes: ["German History", "Political Systems"],
+                historical_figures: ["Friedrich Ebert"],
+                summary: "The Weimar Constitution was the constitution that governed Germany during the Weimar Republic.",
+                related_documents: [1]
+            },
+            {
+                id: 4,
+                title: "The Atlantic Charter",
+                author: "Franklin D. Roosevelt",
+                date: "1941-08-14",
+                themes: ["World War II", "Allied Powers", "International Relations"],
+                historical_figures: ["Franklin D. Roosevelt", "Winston Churchill"],
+                summary: "The Atlantic Charter was a pivotal policy statement issued during World War II, outlining the Allied goals for the post-war world.",
+                related_documents: [2, 5]
+            },
+            {
+                id: 5,
+                title: "The United Nations Charter",
+                author: "United Nations",
+                date: "1945-10-24",
+                themes: ["International Organizations", "Peacekeeping", "Global Governance"],
+                historical_figures: ["Harry S. Truman"],
+                summary: "The United Nations Charter is the foundational treaty of the United Nations, an international organization established to promote peace and security.",
+                related_documents: [4]
+            }
+        ];
+
+        // Time-based Visualization (Timeline)
+        function renderTimeline() {
+            const ctx = document.getElementById('timeline').getContext('2d');
+            const labels = documents.map(doc => doc.date);
+            const data = {
+                labels: labels,
+                datasets: [{
+                    label: 'Documents Timeline',
+                    data: labels.map(date => new Date(date).getTime()),
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                    hoverBackgroundColor: 'rgba(75, 192, 192, 0.5)',  // Lighter on hover
+                    borderWidth: 1,
+                    pointRadius: 5,
+                    pointHoverRadius: 7  // Larger point on hover
+                }]
+            };
+
+            const chart = new Chart(ctx, {
+                type: 'line',
+                data: data,
+                options: {
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'year'
+                            }
+                        },
+                        y: {
+                            display: false
+                        }
+                    },
+                    plugins: {
+                        zoom: {
+                            zoom: {
+                                wheel: {
+                                    enabled: true,
+                                },
+                                pinch: {
+                                    enabled: true
+                                },
+                                mode: 'x',
+                            }
+                        },
+                        tooltip: {
+                            enabled: false,
+                            position: 'nearest',
+                            external: function(context) {
+                                const tooltipModel = context.tooltip;
+                                const tooltipEl = document.getElementById('timeline-tooltip');
+                                if (!tooltipModel.opacity) {
+                                    tooltipEl.style.opacity = 0;
+                                    return;
+                                }
+                                tooltipEl.style.opacity = 1;
+                                tooltipEl.style.left = tooltipModel.caretX + 'px';
+                                tooltipEl.style.top = tooltipModel.caretY + 'px';
+                                tooltipEl.innerHTML = `Date: ${tooltipModel.body[0].lines[0]}`;
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Network Graph Visualization
+        function renderNetworkGraph() {
+            // const svg = d3.select("#networkGraph")
+            //     .append("svg")
+            //     .attr("width", "100%")
+            //     .attr("height", 300);
+
+            const svg = d3.select("#networkGraph").select("svg");
+            const container = svg.append("g");
+
+            const links = [];
+            const nodes = documents.map(doc => {
+                doc.related_documents.forEach(rel => {
+                    links.push({source: doc.id, target: rel});
+                });
+                return {id: doc.id, title: doc.title};
+            });
+
+            const simulation = d3.forceSimulation(nodes)
+                .force("link", d3.forceLink(links).id(d => d.id))
+                .force("charge", d3.forceManyBody().strength(-200))
+                .force("center", d3.forceCenter(svg.node().clientWidth / 2, 150));
+
+            const link = svg.append("g")
+                .attr("stroke", "#999")
+                .attr("stroke-opacity", 0.6)
+                .selectAll("line")
+                .data(links)
+                .join("line");
+
+            const node = svg.append("g")
+                .attr("stroke", "#fff")
+                .attr("stroke-width", 1.5)
+                .selectAll("circle")
+                .data(nodes)
+                .join("circle")
+                .attr("r", 6)
+                .attr("fill", "steelblue")
+                .call(drag(simulation));
+
+            node.append("title")
+                .text(d => d.title);
+
+            // node.on("click", (event, d) => showDocumentInfo(d.id));
+
+            simulation.on("tick", () => {
+                link.attr("x1", d => d.source.x)
+                    .attr("y1", d => d.source.y)
+                    .attr("x2", d => d.target.x)
+                    .attr("y2", d => d.target.y);
+
+                node.attr("cx", d => d.x)
+                    .attr("cy", d => d.y);
+            });
+
+            node.on("click", function(event, d) {
+                showDocumentInfo(d.id);
+                // Optionally, prevent event propagation if using zoom
+                event.stopPropagation();
+            });
+
+             // For Chart.js, you'll need to listen for clicks on the canvas and determine which element was clicked
+            canvas.onclick = function(evt) {
+                const points = myChart.getElementsAtEventForMode(evt, 'nearest', {intersect: true}, true);
+                if (points.length) {
+                    const firstPoint = points[0];
+                    const label = myChart.data.labels[firstPoint.index];
+                    // Find document by date or theme and show info
+                    const doc = documents.find(d => d.date === label || d.themes.includes(label));
+                    if (doc) showDocumentInfo(doc.id);
+                }
+            };
+
+            svg.call(d3.zoom()
+            .scaleExtent([1 / 2, 8])
+            .on("zoom", zoomed));
+
+            function zoomed({transform}) {
+                container.attr("transform", transform);
+            }
+
+
+            function drag(simulation) {
+                function dragstarted(event) {
+                    if (!event.active) simulation.alphaTarget(0.3).restart();
+                    event.subject.fx = event.subject.x;
+                    event.subject.fy = event.subject.y;
+                }
+
+                function dragged(event) {
+                    event.subject.fx = event.x;
+                    event.subject.fy = event.y;
+                }
+
+                function dragended(event) {
+                    if (!event.active) simulation.alphaTarget(0);
+                    event.subject.fx = null;
+                    event.subject.fy = null;
+                }
+
+                return d3.drag()
+                    .on("start", dragstarted)
+                    .on("drag", dragged)
+                    .on("end", dragended);
+            }
+        }
+
+        // Thematic Analysis
+        function renderThemesAnalysis() {
+            const ctx = document.getElementById('themesAnalysis').getContext('2d');
+            const themesCount = {};
+
+            documents.forEach(doc => {
+                doc.themes.forEach(theme => {
+                    themesCount[theme] = (themesCount[theme] || 0) + 1;
+                });
+            });
+
+            const data = {
+                labels: Object.keys(themesCount),
+                datasets: [{
+                    label: 'Theme Occurrences',
+                    data: Object.values(themesCount),
+                    backgroundColor: 'rgba(153, 102, 255, 0.2)',
+                    borderColor: 'rgba(153, 102, 255, 1)',
+                    borderWidth: 1
+                }]
+            };
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: data,
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+    
+
+        // Interactive Exploration
+        function showDocumentInfo(documentId) {
+            const doc = documents.find(d => d.id === documentId);
+            const infoDiv = document.getElementById('documentInfo');
+            infoDiv.innerHTML = `<h2>${doc.title}</h2>
+                                 <p><strong>Author:</strong> ${doc.author}</p>
+                                 <p><strong>Date:</strong> ${doc.date}</p>
+                                 <p><strong>Themes:</strong> ${doc.themes.join(', ')}</p>
+                                 <p><strong>Historical Figures:</strong> ${doc.historical_figures.join(', ')}</p>
+                                 <p><strong>Summary:</strong> ${doc.summary}</p>`;
+        }
+
+        // Render all visualizations
+        renderTimeline();
+        renderNetworkGraph();
+        renderThemesAnalysis();
+    </script>
+</body>
+</html>

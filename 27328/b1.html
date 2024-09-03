@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historical Document Explorer</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        #chart {
+            width: 100%;
+            height: 500px;
+            border: 1px solid #ccc;
+        }
+        #timeline {
+            width: 100%;
+            height: 200px;
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+<body>
+    <h1>Historical Document Explorer</h1>
+    <div id="chart"></div>
+    <div id="timeline"></div>
+    <script>
+const documents = [
+            {
+                id: 1,
+                title: "The Treaty of Versailles",
+                author: "Unknown",
+                date: "1919-06-28",
+                themes: ["World War I", "Peace Treaty", "International Relations"],
+                historical_figures: ["Woodrow Wilson", "David Lloyd George", "Georges Clemenceau"],
+                summary: "The Treaty of Versailles was one of the peace treaties that ended World War I.",
+                related_documents: [2, 3]
+            },
+            {
+                id: 2,
+                title: "The League of Nations",
+                author: "Woodrow Wilson",
+                date: "1920-01-10",
+                themes: ["International Organizations", "Peacekeeping"],
+                historical_figures: ["Woodrow Wilson"],
+                summary: "The League of Nations was an international organization founded after World War I to maintain world peace.",
+                related_documents: [1, 4]
+            },
+            {
+                id: 3,
+                title: "The Weimar Constitution",
+                author: "Friedrich Ebert",
+                date: "1919-08-11",
+                themes: ["German History", "Political Systems"],
+                historical_figures: ["Friedrich Ebert"],
+                summary: "The Weimar Constitution was the constitution that governed Germany during the Weimar Republic.",
+                related_documents: [1]
+            },
+            {
+                id: 4,
+                title: "The Atlantic Charter",
+                author: "Franklin D. Roosevelt",
+                date: "1941-08-14",
+                themes: ["World War II", "Allied Powers", "International Relations"],
+                historical_figures: ["Franklin D. Roosevelt", "Winston Churchill"],
+                summary: "The Atlantic Charter was a pivotal policy statement issued during World War II, outlining the Allied goals for the post-war world.",
+                related_documents: [2, 5]
+            },
+            {
+                id: 5,
+                title: "The United Nations Charter",
+                author: "United Nations",
+                date: "1945-10-24",
+                themes: ["International Organizations", "Peacekeeping", "Global Governance"],
+                historical_figures: ["Harry S. Truman"],
+                summary: "The United Nations Charter is the foundational treaty of the United Nations, an international organization established to promote peace and security.",
+                related_documents: [4]
+            }
+        ];
+
+
+        // Function to draw network graph
+        function drawNetworkGraph() {
+            const nodes = documents.map(doc => ({ id: doc.id, title: doc.title }));
+            const links = documents.flatMap(doc => 
+                doc.related_documents.map(related => ({ source: doc.id, target: related })));
+
+            const simulation = d3.forceSimulation(nodes)
+                .force('link', d3.forceLink(links).id(d => d.id))
+                .force('charge', d3.forceManyBody())
+                .force('center', d3.forceCenter(600 / 2, 500 / 2));
+
+            const svg = d3.select('#chart')
+                .append('svg')
+                .attr('width', 600)
+                .attr('height', 500);
+
+            const link = svg.append('g')
+                .attr('stroke', '#999')
+                .attr('stroke-opacity', 0.6)
+                .selectAll('line')
+                .data(links)
+                .enter().append('line');
+
+            const node = svg.append('g')
+                .attr('stroke', '#fff')
+                .attr('stroke-width', 1.5)
+                .selectAll('circle')
+                .data(nodes)
+                .enter().append('circle')
+                .attr('r', 5)
+                .call(drag(simulation));
+
+            simulation.on('tick', () => {
+                link
+                    .attr('x1', d => d.source.x)
+                    .attr('y1', d => d.source.y)
+                    .attr('x2', d => d.target.x)
+                    .attr('y2', d => d.target.y);
+
+                node
+                    .attr('cx', d => d.x)
+                    .attr('cy', d => d.y);
+            });
+
+            function drag(simulation) {
+                function dragstarted(event) {
+                    if (!event.active) simulation.alphaTarget(0.3).restart();
+                    event.subject.fx = event.subject.x;
+                    event.subject.fy = event.subject.y;
+                }
+
+                function dragged(event) {
+                    event.subject.fx = event.x;
+                    event.subject.fy = event.y;
+                }
+
+                function dragended(event) {
+                    if (!event.active) simulation.alphaTarget(0);
+                    event.subject.fx = null;
+                    event.subject.fy = null;
+                }
+
+                return d3.drag()
+                    .on('start', dragstarted)
+                    .on('drag', dragged)
+                    .on('end', dragended);
+            }
+        }
+
+        // Function to draw timeline
+        function drawTimeline() {
+            const margin = {top: 10, right: 30, bottom: 30, left: 40},
+                width = 600 - margin.left - margin.right,
+                height = 200 - margin.top - margin.bottom;
+
+            const x = d3.scaleTime()
+                .domain(d3.extent(documents, d => new Date(d.date)))
+                .range([0, width]);
+
+            const xAxis = g => g
+                .attr('transform', `translate(0,${height})`)
+                .call(d3.axisBottom(x));
+
+            const svg = d3.select('#timeline')
+                .append('svg')
+                .attr('width', width + margin.left + margin.right)
+                .attr('height', height + margin.top + margin.bottom)
+                .append('g')
+                .attr('transform', `translate(${margin.left},${margin.top})`);
+
+            svg.selectAll('rect')
+                .data(documents)
+                .enter().append('rect')
+                .attr('x', d => x(new Date(d.date)))
+                .attr('y', 0)
+                .attr('width', 2)
+                .attr('height', height);
+
+            svg.append('g').call(xAxis);
+        }
+
+        drawNetworkGraph();
+        drawTimeline();
+    </script>
+</body>
+</html>
