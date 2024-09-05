@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dynamic Article Visualization Platform</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/vis-network@9.1.0/dist/vis-network.min.js"></script>
+    <style>
+      /* Basic styling */
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+      }
+      .header,
+      .content,
+      .footer {
+        padding: 20px;
+      }
+      .header {
+        background-color: #333;
+        color: #fff;
+      }
+      .content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+      .chart-container,
+      .graph-container,
+      .timeline-container,
+      .keyword-cloud-container {
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        padding: 20px;
+        background-color: #f9f9f9;
+      }
+      .filters {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+      }
+      .filters select,
+      .filters input {
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+      }
+      .footer {
+        background-color: #333;
+        color: #fff;
+        text-align: center;
+      }
+
+      /* Set the height of the timeline chart */
+      #timeline-chart {
+        height: 300px; /* Adjust height here */
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <h1>Dynamic Article Visualization Platform</h1>
+    </div>
+    <div class="content">
+      <div class="filters">
+        <select id="author-filter">
+          <option value="">Filter by Author</option>
+        </select>
+        <select id="keyword-filter">
+          <option value="">Filter by Keyword</option>
+        </select>
+        <button onclick="applyFilters()">Apply Filters</button>
+      </div>
+      <div class="chart-container" id="keyword-cloud-container">
+        <h2>Keyword Cloud</h2>
+        <div id="keyword-cloud"></div>
+      </div>
+      <div class="graph-container" id="network-graph-container">
+        <h2>Interactive Graph</h2>
+        <div id="network-graph" style="width: 100%; height: 400px"></div>
+      </div>
+      <div class="timeline-container" id="timeline-container">
+        <h2>Timeline View</h2>
+        <canvas id="timeline-chart" style="width: 100%; height: 300px"></canvas>
+        <!-- Adjust height here -->
+      </div>
+    </div>
+    <div class="footer">
+      <p>&copy; 2024 Dynamic Article Visualization Platform</p>
+    </div>
+    <script>
+      // Sample JSON data
+      const articles = [
+        {
+          id: 1,
+          title: "Exploring Machine Learning in Healthcare",
+          authors: ["Alice Smith", "Bob Johnson"],
+          keywords: ["Machine Learning", "Healthcare", "AI"],
+          publication_date: "2022-05-15",
+          citations: 52,
+          abstract:
+            "This paper explores the applications of machine learning in the healthcare industry, focusing on predictive models and diagnostic tools.",
+          cited_by: [2, 4],
+        },
+        {
+          id: 2,
+          title: "Deep Learning for Image Recognition",
+          authors: ["Charlie Adams", "Alice Smith"],
+          keywords: ["Deep Learning", "Image Recognition", "Neural Networks"],
+          publication_date: "2021-11-03",
+          citations: 75,
+          abstract:
+            "A comprehensive study on deep learning techniques applied to image recognition, highlighting advancements in neural networks.",
+          cited_by: [1, 3],
+        },
+        {
+          id: 3,
+          title: "Natural Language Processing in Education",
+          authors: ["Diana Lee", "Charlie Adams"],
+          keywords: [
+            "Natural Language Processing",
+            "Education",
+            "Text Analysis",
+          ],
+          publication_date: "2020-08-10",
+          citations: 34,
+          abstract:
+            "An analysis of how natural language processing (NLP) technologies are transforming educational tools, focusing on text analysis and language learning applications.",
+          cited_by: [2],
+        },
+        {
+          id: 4,
+          title: "Ethical AI: Challenges and Opportunities",
+          authors: ["Emily Green", "Bob Johnson"],
+          keywords: ["Ethical AI", "AI", "Machine Learning"],
+          publication_date: "2023-02-25",
+          citations: 19,
+          abstract:
+            "This paper examines the ethical considerations in AI development, highlighting challenges in machine learning and its societal impact.",
+          cited_by: [],
+        },
+        {
+          id: 5,
+          title: "Advances in Robotics for Industrial Automation",
+          authors: ["Frank Thompson", "Emily Green"],
+          keywords: ["Robotics", "Automation", "Industrial"],
+          publication_date: "2019-06-17",
+          citations: 90,
+          abstract:
+            "A detailed overview of recent advancements in robotics and their applications in industrial automation.",
+          cited_by: [1, 3, 4],
+        },
+      ];
+
+      // Populate filters
+      function populateFilters() {
+        const authors = new Set();
+        const keywords = new Set();
+
+        articles.forEach((article) => {
+          article.authors.forEach((author) => authors.add(author));
+          article.keywords.forEach((keyword) => keywords.add(keyword));
+        });
+
+        const authorSelect = document.getElementById("author-filter");
+        const keywordSelect = document.getElementById("keyword-filter");
+
+        authors.forEach((author) => {
+          authorSelect.innerHTML += `<option value="${author}">${author}</option>`;
+        });
+
+        keywords.forEach((keyword) => {
+          keywordSelect.innerHTML += `<option value="${keyword}">${keyword}</option>`;
+        });
+      }
+
+      // Initialize the network graph
+      function initializeNetworkGraph(filteredArticles = articles) {
+        const nodes = [];
+        const edges = [];
+
+        filteredArticles.forEach((article) => {
+          nodes.push({ id: article.id, label: article.title });
+          article.cited_by.forEach((citedId) => {
+            edges.push({ from: article.id, to: citedId });
+          });
+        });
+
+        const container = document.getElementById("network-graph");
+        const data = {
+          nodes: new vis.DataSet(nodes),
+          edges: new vis.DataSet(edges),
+        };
+        const options = {
+          nodes: { shape: "dot", size: 10 },
+          edges: { arrows: { to: { enabled: true } } },
+          physics: { enabled: true },
+        };
+        new vis.Network(container, data, options);
+      }
+
+      // Initialize the keyword cloud
+      function initializeKeywordCloud(filteredArticles = articles) {
+        const keywords = filteredArticles.flatMap(
+          (article) => article.keywords
+        );
+        const keywordCount = keywords.reduce((acc, keyword) => {
+          acc[keyword] = (acc[keyword] || 0) + 1;
+          return acc;
+        }, {});
+
+        const cloudContainer = document.getElementById("keyword-cloud");
+        cloudContainer.innerHTML = Object.entries(keywordCount)
+          .map(
+            ([keyword, count]) =>
+              `<span style="font-size: ${
+                count * 10
+              }px; margin: 5px;">${keyword}</span>`
+          )
+          .join("");
+      }
+
+      // Declare a variable to hold the Chart instance
+      let timelineChart = null;
+
+      // Initialize the timeline view
+      function initializeTimeline(filteredArticles = articles) {
+        const labels = filteredArticles.map(
+          (article) => article.publication_date
+        );
+        const data = filteredArticles.map((article) => article.citations);
+
+        // Destroy existing chart if it exists
+        if (timelineChart) {
+          timelineChart.destroy();
+        }
+
+        // Create a new chart
+        timelineChart = new Chart(
+          document.getElementById("timeline-chart").getContext("2d"),
+          {
+            type: "line",
+            data: {
+              labels: labels,
+              datasets: [
+                {
+                  label: "Citations Over Time",
+                  data: data,
+                  borderColor: "rgba(75, 192, 192, 1)",
+                  backgroundColor: "rgba(75, 192, 192, 0.2)",
+                  borderWidth: 1,
+                  fill: false,
+                },
+              ],
+            },
+            options: {
+              scales: {
+                x: { beginAtZero: true },
+                y: { beginAtZero: true },
+              },
+            },
+          }
+        );
+      }
+
+      // Apply filters and reinitialize visualizations
+      function applyFilters() {
+        const authorFilter = document.getElementById("author-filter").value;
+        const keywordFilter = document.getElementById("keyword-filter").value;
+
+        const filteredArticles = articles.filter((article) => {
+          const matchAuthor = authorFilter
+            ? article.authors.includes(authorFilter)
+            : true;
+          const matchKeyword = keywordFilter
+            ? article.keywords.includes(keywordFilter)
+            : true;
+          return matchAuthor && matchKeyword;
+        });
+
+        // Reinitialize visualizations with filtered articles
+        initializeNetworkGraph(filteredArticles);
+        initializeKeywordCloud(filteredArticles);
+        initializeTimeline(filteredArticles);
+      }
+
+      // Initialize all visualizations on page load
+      document.addEventListener("DOMContentLoaded", () => {
+        populateFilters();
+        initializeNetworkGraph();
+        initializeKeywordCloud();
+        initializeTimeline();
+      });
+    </script>
+  </body>
+</html>

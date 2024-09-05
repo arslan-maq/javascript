@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Article Visualization Platform</title>
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+    />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+      }
+      .graph,
+      .timeline,
+      .word-cloud {
+        border: 1px solid #ccc;
+        margin: 10px 0;
+        padding: 10px;
+      }
+      .controls {
+        margin: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Research Article Explorer</h1>
+      <div class="controls">
+        <button id="filterBtn">Filter</button>
+        <button id="sortBtn">Sort</button>
+      </div>
+      <div id="graph" class="graph"></div>
+      <div id="timeline" class="timeline"></div>
+      <div id="wordCloud" class="word-cloud"></div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://d3js.org/d3.v6.min.js"></script>
+
+    <script>
+      const articles = [
+        {
+          id: 1,
+          title: "Exploring Machine Learning in Healthcare",
+          authors: ["Alice Smith", "Bob Johnson"],
+          keywords: ["Machine Learning", "Healthcare", "AI"],
+          publication_date: "2022-05-15",
+          citations: 52,
+          abstract:
+            "This paper explores the applications of machine learning in the healthcare industry, focusing on predictive models and diagnostic tools.",
+          cited_by: [2, 4],
+        },
+        {
+          id: 2,
+          title: "Deep Learning for Image Recognition",
+          authors: ["Charlie Adams", "Alice Smith"],
+          keywords: ["Deep Learning", "Image Recognition", "Neural Networks"],
+          publication_date: "2021-11-03",
+          citations: 75,
+          abstract:
+            "A comprehensive study on deep learning techniques applied to image recognition, highlighting advancements in neural networks.",
+          cited_by: [1, 3],
+        },
+        {
+          id: 3,
+          title: "Natural Language Processing in Education",
+          authors: ["Diana Lee", "Charlie Adams"],
+          keywords: [
+            "Natural Language Processing",
+            "Education",
+            "Text Analysis",
+          ],
+          publication_date: "2020-08-10",
+          citations: 34,
+          abstract:
+            "An analysis of how natural language processing (NLP) technologies are transforming educational tools, focusing on text analysis and language learning applications.",
+          cited_by: [2],
+        },
+        {
+          id: 4,
+          title: "Ethical AI: Challenges and Opportunities",
+          authors: ["Emily Green", "Bob Johnson"],
+          keywords: ["Ethical AI", "AI", "Machine Learning"],
+          publication_date: "2023-02-25",
+          citations: 19,
+          abstract:
+            "This paper examines the ethical considerations in AI development, highlighting challenges in machine learning and its societal impact.",
+          cited_by: [],
+        },
+        {
+          id: 5,
+          title: "Advances in Robotics for Industrial Automation",
+          authors: ["Frank Thompson", "Emily Green"],
+          keywords: ["Robotics", "Automation", "Industrial"],
+          publication_date: "2019-06-17",
+          citations: 90,
+          abstract:
+            "A detailed overview of recent advancements in robotics and their applications in industrial automation.",
+          cited_by: [1, 3, 4],
+        },
+      ];
+
+      // Data Preparation
+      const links = articles.flatMap((article) =>
+        article.cited_by.map((id) => ({ source: article.id, target: id }))
+      );
+
+      const nodes = articles.map((article) => ({ ...article }));
+
+      // Network Graph
+      const graph = d3.select("#graph");
+      const width = 800,
+        height = 500;
+      const simulation = d3
+        .forceSimulation(nodes)
+        .force(
+          "link",
+          d3.forceLink(links).id((d) => d.id)
+        )
+        .force("charge", d3.forceManyBody())
+        .force("center", d3.forceCenter(width / 2, height / 2));
+
+      const svg = graph.append("svg").attr("viewBox", [0, 0, width, height]);
+
+      const link = svg
+        .append("g")
+        .selectAll("line")
+        .data(links)
+        .join("line")
+        .attr("stroke", "#999");
+
+      const node = svg
+        .append("g")
+        .selectAll("circle")
+        .data(nodes)
+        .join("circle")
+        .attr("r", 5)
+        .attr("fill", "blue")
+        .call(drag(simulation));
+
+      node.append("title").text((d) => d.title);
+
+      simulation.on("tick", () => {
+        link
+          .attr("x1", (d) => d.source.x)
+          .attr("y1", (d) => d.source.y)
+          .attr("x2", (d) => d.target.x)
+          .attr("y2", (d) => d.target.y);
+
+        node.attr("cx", (d) => d.x).attr("cy", (d) => d.y);
+      });
+
+      // Timeline
+      const timeline = d3.select("#timeline");
+      // Implementation of timeline would go here using d3's scaleTime etc.
+
+      // Word Cloud
+      const wordCloud = d3.select("#wordCloud");
+      // Here you would use d3.layout.cloud or similar to generate word cloud
+
+      // Filters and Sorting
+      $("#filterBtn").on("click", function () {
+        // Add filter logic here
+      });
+
+      $("#sortBtn").on("click", function () {
+        // Add sorting logic here
+      });
+
+      // Drag utility for nodes
+      function drag(simulation) {
+        function dragstarted(event) {
+          if (!event.active) simulation.alphaTarget(0.3).restart();
+          event.subject.fx = event.subject.x;
+          event.subject.fy = event.subject.y;
+        }
+
+        function dragged(event) {
+          event.subject.fx = event.x;
+          event.subject.fy = event.y;
+        }
+
+        return d3.drag().on("start", dragstarted).on("drag", dragged);
+      }
+    </script>
+  </body>
+</html>

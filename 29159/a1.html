@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dynamic Article Visualization</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background: #f4f4f4;
+      }
+      .container {
+        width: 95%;
+        margin: auto;
+        overflow: hidden;
+      }
+      #graph,
+      #timeline,
+      #keywordCloud {
+        margin: 20px 0;
+        background: white;
+        padding: 20px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      }
+      #filters {
+        margin: 10px 0;
+        padding: 10px;
+        background: #e9e9e9;
+      }
+      .tooltip {
+        position: absolute;
+        text-align: center;
+        padding: 2px;
+        background: lightsteelblue;
+        border: 0px;
+        border-radius: 8px;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Article Visualization Platform</h1>
+      <div id="filters">
+        <label
+          >Date Range: <input type="date" id="start-date" /> to
+          <input type="date" id="end-date"
+        /></label>
+        <input type="text" id="author-filter" placeholder="Filter by Author" />
+        <input
+          type="text"
+          id="keyword-filter"
+          placeholder="Filter by Keyword"
+        />
+        <button onclick="applyFilters()">Apply Filters</button>
+      </div>
+      <div id="graph"></div>
+      <div id="timeline"></div>
+      <div id="keywordCloud"></div>
+    </div>
+
+    <script>
+      const articles = [
+        {
+          id: 1,
+          title: "Exploring Machine Learning in Healthcare",
+          authors: ["Alice Smith", "Bob Johnson"],
+          keywords: ["Machine Learning", "Healthcare", "AI"],
+          publication_date: "2022-05-15",
+          citations: 52,
+          abstract:
+            "This paper explores the applications of machine learning in the healthcare industry, focusing on predictive models and diagnostic tools.",
+          cited_by: [2, 4],
+        },
+        {
+          id: 2,
+          title: "Deep Learning for Image Recognition",
+          authors: ["Charlie Adams", "Alice Smith"],
+          keywords: ["Deep Learning", "Image Recognition", "Neural Networks"],
+          publication_date: "2021-11-03",
+          citations: 75,
+          abstract:
+            "A comprehensive study on deep learning techniques applied to image recognition, highlighting advancements in neural networks.",
+          cited_by: [1, 3],
+        },
+        {
+          id: 3,
+          title: "Natural Language Processing in Education",
+          authors: ["Diana Lee", "Charlie Adams"],
+          keywords: [
+            "Natural Language Processing",
+            "Education",
+            "Text Analysis",
+          ],
+          publication_date: "2020-08-10",
+          citations: 34,
+          abstract:
+            "An analysis of how natural language processing (NLP) technologies are transforming educational tools, focusing on text analysis and language learning applications.",
+          cited_by: [2],
+        },
+        {
+          id: 4,
+          title: "Ethical AI: Challenges and Opportunities",
+          authors: ["Emily Green", "Bob Johnson"],
+          keywords: ["Ethical AI", "AI", "Machine Learning"],
+          publication_date: "2023-02-25",
+          citations: 19,
+          abstract:
+            "This paper examines the ethical considerations in AI development, highlighting challenges in machine learning and its societal impact.",
+          cited_by: [],
+        },
+        {
+          id: 5,
+          title: "Advances in Robotics for Industrial Automation",
+          authors: ["Frank Thompson", "Emily Green"],
+          keywords: ["Robotics", "Automation", "Industrial"],
+          publication_date: "2019-06-17",
+          citations: 90,
+          abstract:
+            "A detailed overview of recent advancements in robotics and their applications in industrial automation.",
+          cited_by: [1, 3, 4],
+        },
+      ];
+
+      let svg, timeline, keywordCloud;
+      const width = 800,
+        height = 600;
+
+      function setupGraph() {
+        svg = d3
+          .select("#graph")
+          .append("svg")
+          .attr("width", width)
+          .attr("height", height)
+          .call(
+            d3.zoom().on("zoom", function (event) {
+              svg.attr("transform", event.transform);
+            })
+          )
+          .append("g");
+
+        const simulation = d3
+          .forceSimulation(articles.articles)
+          .force(
+            "link",
+            d3
+              .forceLink()
+              .id((d) => d.id)
+              .links(
+                articles.articles
+                  .map((a) =>
+                    a.cited_by.map((b) => ({ source: a.id, target: b }))
+                  )
+                  .flat()
+              )
+          )
+          .force("charge", d3.forceManyBody().strength(-150))
+          .force("center", d3.forceCenter(width / 2, height / 2));
+
+        const link = svg
+          .append("g")
+          .selectAll("line")
+          .data(
+            articles.articles
+              .map((a) => a.cited_by.map((b) => ({ source: a.id, target: b })))
+              .flat()
+          )
+          .enter()
+          .append("line")
+          .attr("stroke", "#999");
+
+        const node = svg
+          .append("g")
+          .selectAll("circle")
+          .data(articles.articles)
+          .enter()
+          .append("circle")
+          .attr("r", 10)
+          .attr("fill", "#69b3a2")
+          .call(
+            d3
+              .drag()
+              .on("start", dragstarted)
+              .on("drag", dragged)
+              .on("end", dragended)
+          );
+
+        const tooltip = d3
+          .select("body")
+          .append("div")
+          .attr("class", "tooltip")
+          .style("opacity", 0);
+
+        node
+          .on("mouseover", function (event, d) {
+            tooltip.transition().duration(200).style("opacity", 0.9);
+            tooltip
+              .html(d.title + "<br/>" + d.authors.join(", "))
+              .style("left", event.pageX + "px")
+              .style("top", event.pageY - 28 + "px");
+          })
+          .on("mouseout", function (d) {
+            tooltip.transition().duration(500).style("opacity", 0);
+          });
+
+        simulation.on("tick", () => {
+          link
+            .attr("x1", (d) => d.source.x)
+            .attr("y1", (d) => d.source.y)
+            .attr("x2", (d) => d.target.x)
+            .attr("y2", (d) => d.target.y);
+
+          node.attr("cx", (d) => d.x).attr("cy", (d) => d.y);
+        });
+
+        function dragstarted(event, d) {
+          if (!event.active) simulation.alphaTarget(0.3).restart();
+          d.fx = d.x;
+          d.fy = d.y;
+        }
+
+        function dragged(event, d) {
+          d.fx = event.x;
+          d.fy = event.y;
+        }
+
+        function dragended(event, d) {
+          if (!event.active) simulation.alphaTarget(0);
+          d.fx = null;
+          d.fy = null;
+        }
+      }
+
+      function setupTimeline() {
+        const timelineData = articles.articles.map((a) => ({
+          date: new Date(a.publication_date),
+          title: a.title,
+        }));
+        timeline = d3
+          .select("#timeline")
+          .append("svg")
+          .attr("width", width)
+          .attr("height", 200);
+
+        const x = d3
+          .scaleTime()
+          .domain(d3.extent(timelineData, (d) => d.date))
+          .range([0, width]);
+
+        timeline
+          .selectAll("rect")
+          .data(timelineData)
+          .enter()
+          .append("rect")
+          .attr("x", (d) => x(d.date))
+          .attr("y", 50)
+          .attr("width", 2)
+          .attr("height", 50)
+          .attr("fill", "steelblue");
+
+        timeline
+          .selectAll("text")
+          .data(timelineData)
+          .enter()
+          .append("text")
+          .text((d) => d.title)
+          .attr("x", (d) => x(d.date))
+          .attr("y", 45)
+          .attr("text-anchor", "middle")
+          .attr("transform", (d) => `rotate(90 ${x(d.date)} 45)`);
+      }
+
+      function setupKeywordCloud() {
+        let allKeywords = articles.articles.flatMap(
+          (article) => article.keywords
+        );
+        let keywordFrequency = allKeywords.reduce(
+          (acc, e) => acc.set(e, (acc.get(e) || 0) + 1),
+          new Map()
+        );
+
+        let cloudContainer = document.getElementById("keywordCloud");
+        keywordFrequency.forEach((count, keyword) => {
+          let span = document.createElement("span");
+          span.textContent = keyword;
+          span.style.fontSize = `${10 + count * 5}px`;
+          span.style.margin = "5px";
+          span.onclick = function () {
+            filterByKeyword(keyword);
+          };
+          cloudContainer.appendChild(span);
+        });
+      }
+
+      function applyFilters() {
+        const startDate = document.getElementById("start-date").value;
+        const endDate = document.getElementById("end-date").value;
+        const author = document
+          .getElementById("author-filter")
+          .value.toLowerCase();
+        const keyword = document
+          .getElementById("keyword-filter")
+          .value.toLowerCase();
+
+        let filteredArticles = articles.articles.filter(
+          (article) =>
+            (startDate
+              ? new Date(article.publication_date) >= new Date(startDate)
+              : true) &&
+            (endDate
+              ? new Date(article.publication_date) <= new Date(endDate)
+              : true) &&
+            (author
+              ? article.authors.some((a) => a.toLowerCase().includes(author))
+              : true) &&
+            (keyword
+              ? article.keywords.some((k) => k.toLowerCase().includes(keyword))
+              : true)
+        );
+
+        // Here you would typically refresh all visualizations with filteredArticles
+        console.log(filteredArticles);
+      }
+
+      function filterByKeyword(keyword) {
+        document.getElementById("keyword-filter").value = keyword;
+        applyFilters();
+      }
+
+      document.addEventListener("DOMContentLoaded", function () {
+        setupGraph();
+        setupTimeline();
+        setupKeywordCloud();
+      });
+    </script>
+  </body>
+</html>
