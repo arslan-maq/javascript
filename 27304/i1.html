@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Advanced Visualization Tool</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/vis-network/styles/vis-network.css"
+    />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f4f4f4;
+      }
+      header {
+        background-color: #333;
+        color: #fff;
+        padding: 1rem;
+        text-align: center;
+      }
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 1rem;
+      }
+      .filters {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 1rem;
+      }
+      .filters label,
+      .filters input,
+      .filters button {
+        font-size: 1rem;
+        margin-right: 1rem;
+      }
+      #network,
+      #map,
+      #citation-tree,
+      #time-series {
+        height: 400px;
+        border-radius: 8px;
+        border: 1px solid #ddd;
+        background-color: #fff;
+        margin-bottom: 1rem;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 1rem;
+        background-color: #fff;
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      th,
+      td {
+        border: 1px solid #ddd;
+        padding: 0.75rem;
+        text-align: left;
+      }
+      th {
+        background-color: #f2f2f2;
+      }
+      caption {
+        padding: 0.75rem;
+        font-weight: bold;
+      }
+      button {
+        padding: 0.5rem 1rem;
+        border: none;
+        background-color: #007bff;
+        color: #fff;
+        font-size: 1rem;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      button:hover {
+        background-color: #0056b3;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Advanced Visualization Tool</h1>
+    <div id="filters">
+      <label for="yearFilter">Filter by year:</label>
+      <input type="number" id="yearFilter" placeholder="Enter year" />
+      <button onclick="filterData()">Apply Filter</button>
+    </div>
+    <div id="network"></div>
+    <div id="map"></div>
+    <canvas id="time-series"></canvas>
+    <div id="citation-tree"></div>
+    <h2>Article Data</h2>
+    <table id="article-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Title</th>
+          <th>Authors</th>
+          <th>Publication Date</th>
+          <th>Keywords</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <script src="https://unpkg.com/chart.js"></script>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://d3js.org/d3.v6.min.js"></script>
+    <script>
+      // Define the JSON data as a constant
+      const articleData = {
+        articles: [
+          {
+            id: "article-001",
+            title: "The Impact of AI on Modern Healthcare",
+            authors: [
+              {
+                name: "Dr. Alice Smith",
+                affiliation:
+                  "Department of Computer Science, University of Example",
+              },
+              {
+                name: "Dr. Bob Johnson",
+                affiliation: "Institute of Health Technology, Tech University",
+              },
+            ],
+            publication_date: "2024-05-15",
+            keywords: [
+              "Artificial Intelligence",
+              "Healthcare",
+              "Machine Learning",
+            ],
+            citations: [
+              {
+                cited_article_id: "article-002",
+                cited_title:
+                  "Machine Learning in Healthcare: A Comprehensive Review",
+              },
+            ],
+          },
+          {
+            id: "article-002",
+            title: "Machine Learning in Healthcare: A Comprehensive Review",
+            authors: [
+              {
+                name: "Dr. Carol Lee",
+                affiliation:
+                  "Department of Biomedical Engineering, Health University",
+              },
+            ],
+            publication_date: "2023-11-20",
+            keywords: [
+              "Machine Learning",
+              "Healthcare Technology",
+              "Data Analysis",
+            ],
+            citations: [
+              {
+                cited_article_id: "article-003",
+                cited_title: "Deep Learning for Medical Diagnosis",
+              },
+            ],
+          },
+          {
+            id: "article-003",
+            title: "Deep Learning for Medical Diagnosis",
+            authors: [
+              {
+                name: "Dr. David Kim",
+                affiliation:
+                  "Center for Medical AI Research, Medical University",
+              },
+            ],
+            publication_date: "2022-09-15",
+            keywords: ["Deep Learning", "Medical Diagnosis", "Image Analysis"],
+            citations: [],
+          },
+        ],
+      };
+
+      // Populate the article table
+      function populateTable(data) {
+        const tableBody = document.querySelector("#article-table tbody");
+        data.articles.forEach((article) => {
+          const row = document.createElement("tr");
+          row.innerHTML = `
+                    <td>${article.id}</td>
+                    <td>${article.title}</td>
+                    <td>${article.authors
+                      .map((author) => author.name)
+                      .join(", ")}</td>
+                    <td>${article.publication_date}</td>
+                    <td>${article.keywords.join(", ")}</td>
+                `;
+          tableBody.appendChild(row);
+        });
+      }
+
+      // Create a network graph
+      function createNetworkGraph(data) {
+        const nodes = [];
+        const edges = [];
+
+        // Create nodes for articles
+        data.articles.forEach((article) => {
+          nodes.push({ id: article.id, label: article.title });
+          article.authors.forEach((author) => {
+            nodes.push({ id: author.name, label: author.name });
+            edges.push({ from: article.id, to: author.name });
+          });
+          article.citations.forEach((citation) => {
+            edges.push({
+              from: article.id,
+              to: citation.cited_article_id,
+              label: "cites",
+            });
+          });
+        });
+
+        const container = document.getElementById("network");
+        const networkData = {
+          nodes: new vis.DataSet(nodes),
+          edges: new vis.DataSet(edges),
+        };
+        const options = {
+          nodes: { shape: "dot", size: 10 },
+          edges: { arrows: "to" },
+        };
+        new vis.Network(container, networkData, options);
+      }
+
+      let timeSeriesChart; // Store the chart instance globally
+
+      function createTimeSeriesChart(data) {
+        const labels = data.articles.map((article) => article.publication_date);
+        const counts = labels.reduce((acc, date) => {
+          acc[date] = (acc[date] || 0) + 1;
+          return acc;
+        }, {});
+
+        const ctx = document.getElementById("time-series").getContext("2d");
+
+        // Destroy the previous chart instance if it exists
+        if (timeSeriesChart) {
+          timeSeriesChart.destroy();
+        }
+
+        timeSeriesChart = new Chart(ctx, {
+          type: "line",
+          data: {
+            labels: Object.keys(counts),
+            datasets: [
+              {
+                label: "Number of Articles Published",
+                data: Object.values(counts),
+                borderColor: "rgba(75, 192, 192, 1)",
+                borderWidth: 1,
+                fill: false,
+              },
+            ],
+          },
+          options: {
+            scales: {
+              x: { title: { display: true, text: "Publication Date" } },
+              y: { title: { display: true, text: "Number of Articles" } },
+            },
+          },
+        });
+      }
+
+      let map; // Store the map instance globally
+
+      function createThematicMap(data) {
+        // If a map instance already exists, remove it
+        if (map) {
+          map.remove();
+        }
+
+        map = L.map("map").setView([51.505, -0.09], 2);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution:
+            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        }).addTo(map);
+
+        data.articles.forEach((article) => {
+          // For demo purposes, using fixed coordinates for each article
+          L.marker([51.505 + Math.random() * 10, -0.09 + Math.random() * 10])
+            .addTo(map)
+            .bindPopup(
+              `<b>${article.title}</b><br>Published: ${article.publication_date}`
+            );
+        });
+      }
+
+      // Create a citation tree (simple example)
+      function createCitationTree(data) {
+        const width = 800,
+          height = 400;
+        const svg = d3
+          .select("#citation-tree")
+          .append("svg")
+          .attr("width", width)
+          .attr("height", height);
+
+        const links = data.articles.flatMap((article) =>
+          article.citations.map((citation) => ({
+            source: article.id,
+            target: citation.cited_article_id,
+          }))
+        );
+
+        const nodes = Array.from(
+          new Set(links.flatMap((link) => [link.source, link.target]))
+        ).map((id) => ({
+          id,
+          label:
+            data.articles.find((article) => article.id === id)?.title || id,
+        }));
+
+        const simulation = d3
+          .forceSimulation(nodes)
+          .force(
+            "link",
+            d3.forceLink(links).id((d) => d.id)
+          )
+          .force("charge", d3.forceManyBody())
+          .force("center", d3.forceCenter(width / 2, height / 2));
+
+        svg
+          .append("g")
+          .selectAll("line")
+          .data(links)
+          .enter()
+          .append("line")
+          .attr("stroke", "#aaa");
+
+        const node = svg
+          .append("g")
+          .selectAll("circle")
+          .data(nodes)
+          .enter()
+          .append("circle")
+          .attr("r", 5)
+          .attr("fill", "#1f77b4");
+
+        node.append("title").text((d) => d.label);
+
+        simulation.on("tick", () => {
+          svg
+            .selectAll("line")
+            .attr("x1", (d) => d.source.x)
+            .attr("y1", (d) => d.source.y)
+            .attr("x2", (d) => d.target.x)
+            .attr("y2", (d) => d.target.y);
+
+          node.attr("cx", (d) => d.x).attr("cy", (d) => d.y);
+        });
+      }
+
+      // Apply filters to the data
+      function filterData() {
+        const year = document.getElementById("yearFilter").value;
+        const filteredData = {
+          articles: articleData.articles.filter((article) => {
+            return (
+              !year ||
+              new Date(article.publication_date).getFullYear() ===
+                parseInt(year)
+            );
+          }),
+        };
+
+        // Clear previous visualizations
+        document.getElementById("network").innerHTML = "";
+        document.getElementById("map").innerHTML = "";
+        document.getElementById("citation-tree").innerHTML = "";
+        document
+          .getElementById("time-series")
+          .getContext("2d")
+          .clearRect(0, 0, 800, 400);
+
+        // Recreate visualizations with filtered data
+        createNetworkGraph(filteredData);
+        createTimeSeriesChart(filteredData);
+        createThematicMap(filteredData);
+        createCitationTree(filteredData);
+
+        // Update article table
+        document.querySelector("#article-table tbody").innerHTML = "";
+        populateTable(filteredData);
+      }
+
+      // Initialize visualizations
+      function initialize() {
+        populateTable(articleData);
+        createNetworkGraph(articleData);
+        createTimeSeriesChart(articleData);
+        createThematicMap(articleData);
+        createCitationTree(articleData);
+      }
+
+      initialize();
+    </script>
+  </body>
+</html>

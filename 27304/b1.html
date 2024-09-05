@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Academic Article Visualization Tool</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/leaflet.css"
+    />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+      }
+      #dashboard {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-around;
+        padding: 20px;
+      }
+      .visualization {
+        width: 45%;
+        margin: 10px;
+        border: 1px solid #ddd;
+        padding: 10px;
+        box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
+      }
+      #map {
+        height: 300px;
+      }
+      #network,
+      #timeseries {
+        height: 300px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="dashboard">
+      <div class="visualization" id="network">
+        Network Graph will appear here
+      </div>
+      <div class="visualization" id="timeseries">
+        Time Series Chart will appear here
+      </div>
+      <div class="visualization" id="map">Thematic Map will appear here</div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script>
+      const ARTICLE_DATA = {
+        articles: [
+          {
+            id: "article-001",
+            title: "The Impact of AI on Modern Healthcare",
+            authors: [
+              {
+                name: "Dr. Alice Smith",
+                affiliation:
+                  "Department of Computer Science, University of Example",
+              },
+              {
+                name: "Dr. Bob Johnson",
+                affiliation: "Institute of Health Technology, Tech University",
+              },
+            ],
+            publication_date: "2024-05-15",
+            keywords: [
+              "Artificial Intelligence",
+              "Healthcare",
+              "Machine Learning",
+            ],
+            citations: [
+              {
+                cited_article_id: "article-002",
+                cited_title:
+                  "Machine Learning in Healthcare: A Comprehensive Review",
+              },
+            ],
+          },
+          {
+            id: "article-002",
+            title: "Machine Learning in Healthcare: A Comprehensive Review",
+            authors: [
+              {
+                name: "Dr. Carol Lee",
+                affiliation:
+                  "Department of Biomedical Engineering, Health University",
+              },
+            ],
+            publication_date: "2023-11-20",
+            keywords: [
+              "Machine Learning",
+              "Healthcare Technology",
+              "Data Analysis",
+            ],
+            citations: [
+              {
+                cited_article_id: "article-003",
+                cited_title: "Deep Learning for Medical Diagnosis",
+              },
+            ],
+          },
+          {
+            id: "article-003",
+            title: "Deep Learning for Medical Diagnosis",
+            authors: [
+              {
+                name: "Dr. David Kim",
+                affiliation:
+                  "Center for Medical AI Research, Medical University",
+              },
+            ],
+            publication_date: "2022-09-15",
+            keywords: ["Deep Learning", "Medical Diagnosis", "Image Analysis"],
+            citations: [],
+          },
+        ],
+      };
+
+      // Network Graph
+      function createNetworkGraph() {
+        const svg = d3
+          .select("#network")
+          .append("svg")
+          .attr("width", "100%")
+          .attr("height", "300");
+
+        // Dummy data for demonstration
+        const nodes = [{ id: "Alice" }, { id: "Bob" }, { id: "Carol" }];
+        const links = [
+          { source: "Alice", target: "Bob" },
+          { source: "Bob", target: "Carol" },
+        ];
+
+        const simulation = d3
+          .forceSimulation(nodes)
+          .force(
+            "link",
+            d3.forceLink(links).id((d) => d.id)
+          )
+          .force("charge", d3.forceManyBody())
+          .force("center", d3.forceCenter(200, 150));
+
+        const link = svg
+          .selectAll(".link")
+          .data(links)
+          .enter()
+          .append("line")
+          .attr("class", "link");
+
+        const node = svg
+          .selectAll(".node")
+          .data(nodes)
+          .enter()
+          .append("circle")
+          .attr("class", "node")
+          .attr("r", 5)
+          .call(
+            d3
+              .drag()
+              .on("start", dragstarted)
+              .on("drag", dragged)
+              .on("end", dragended)
+          );
+
+        function dragstarted(event, d) {
+          if (!event.active) simulation.alphaTarget(0.3).restart();
+          d.fx = d.x;
+          d.fy = d.y;
+        }
+
+        function dragged(event, d) {
+          d.fx = event.x;
+          d.fy = event.y;
+        }
+
+        function dragended(event, d) {
+          if (!event.active) simulation.alphaTarget(0);
+          d.fx = null;
+          d.fy = null;
+        }
+
+        simulation.on("tick", () => {
+          link
+            .attr("x1", (d) => d.source.x)
+            .attr("y1", (d) => d.source.y)
+            .attr("x2", (d) => d.target.x)
+            .attr("y2", (d) => d.target.y);
+
+          node.attr("cx", (d) => d.x).attr("cy", (d) => d.y);
+        });
+      }
+
+      // Time Series Chart
+      function createTimeSeries() {
+        // Placeholder for time series data
+        const data = [
+          { date: "2022-01-01", value: 5 },
+          { date: "2023-01-01", value: 10 },
+          { date: "2024-01-01", value: 15 },
+        ];
+
+        const svg = d3
+          .select("#timeseries")
+          .append("svg")
+          .attr("width", "100%")
+          .attr("height", "300");
+
+        const margin = { top: 20, right: 20, bottom: 30, left: 50 },
+          width = +svg.attr("width") - margin.left - margin.right,
+          height = +svg.attr("height") - margin.top - margin.bottom;
+
+        const x = d3.scaleTime().range([0, width]);
+        const y = d3.scaleLinear().range([height, 0]);
+
+        x.domain(d3.extent(data, (d) => new Date(d.date)));
+        y.domain([0, d3.max(data, (d) => d.value)]);
+
+        const g = svg
+          .append("g")
+          .attr(
+            "transform",
+            "translate(" + margin.left + "," + margin.top + ")"
+          );
+
+        g.append("g")
+          .attr("transform", "translate(0," + height + ")")
+          .call(d3.axisBottom(x));
+
+        g.append("g").call(d3.axisLeft(y));
+
+        g.append("path")
+          .datum(data)
+          .attr("fill", "none")
+          .attr("stroke", "steelblue")
+          .attr("stroke-width", 1.5)
+          .attr(
+            "d",
+            d3
+              .line()
+              .x((d) => x(new Date(d.date)))
+              .y((d) => y(d.value))
+          );
+      }
+
+      // Thematic Map
+      function createMap() {
+        const map = L.map("map").setView([51.505, -0.09], 2);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution: "&copy; OpenStreetMap contributors",
+        }).addTo(map);
+
+        // Demo pin
+        L.marker([51.5, -0.09])
+          .addTo(map)
+          .bindPopup("A sample location for research articles.")
+          .openPopup();
+      }
+
+      document.addEventListener("DOMContentLoaded", function () {
+        createNetworkGraph();
+        createTimeSeries();
+        createMap();
+      });
+    </script>
+  </body>
+</html>

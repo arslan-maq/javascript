@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Research Article Visualizer</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/leaflet.css"
+    />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+      }
+      #dashboard {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-around;
+      }
+      .viz-container {
+        margin: 10px;
+        padding: 10px;
+        border: 1px solid #ccc;
+      }
+      #map {
+        height: 400px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="dashboard">
+      <div class="viz-container" id="networkGraph"></div>
+      <div class="viz-container" id="timeSeries"></div>
+      <div class="viz-container" id="map"></div>
+      <div class="viz-container" id="citationTree"></div>
+      <div id="controls">
+        <select id="filterSelect">
+          <option value="year">Year</option>
+          <option value="author">Author</option>
+          <option value="keyword">Keyword</option>
+        </select>
+        <input type="text" id="filterInput" placeholder="Filter..." />
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script>
+      const articles = {
+        articles: [
+          {
+            id: "article-001",
+            title: "The Impact of AI on Modern Healthcare",
+            authors: [
+              {
+                name: "Dr. Alice Smith",
+                affiliation:
+                  "Department of Computer Science, University of Example",
+              },
+              {
+                name: "Dr. Bob Johnson",
+                affiliation: "Institute of Health Technology, Tech University",
+              },
+            ],
+            publication_date: "2024-05-15",
+            keywords: [
+              "Artificial Intelligence",
+              "Healthcare",
+              "Machine Learning",
+            ],
+            citations: [
+              {
+                cited_article_id: "article-002",
+                cited_title:
+                  "Machine Learning in Healthcare: A Comprehensive Review",
+              },
+            ],
+          },
+          {
+            id: "article-002",
+            title: "Machine Learning in Healthcare: A Comprehensive Review",
+            authors: [
+              {
+                name: "Dr. Carol Lee",
+                affiliation:
+                  "Department of Biomedical Engineering, Health University",
+              },
+            ],
+            publication_date: "2023-11-20",
+            keywords: [
+              "Machine Learning",
+              "Healthcare Technology",
+              "Data Analysis",
+            ],
+            citations: [
+              {
+                cited_article_id: "article-003",
+                cited_title: "Deep Learning for Medical Diagnosis",
+              },
+            ],
+          },
+          {
+            id: "article-003",
+            title: "Deep Learning for Medical Diagnosis",
+            authors: [
+              {
+                name: "Dr. David Kim",
+                affiliation:
+                  "Center for Medical AI Research, Medical University",
+              },
+            ],
+            publication_date: "2022-09-15",
+            keywords: ["Deep Learning", "Medical Diagnosis", "Image Analysis"],
+            citations: [],
+          },
+        ],
+      };
+
+      // Data processing would go here: transform JSON for D3, Chart.js, etc.
+
+      function updateVisualizations(data) {
+        // Function to update or initialize all visualizations
+        drawNetworkGraph(data);
+        drawTimeSeries(data);
+        drawMap(data);
+        drawCitationTree(data);
+      }
+
+      function drawNetworkGraph(data) {
+        // D3.js code to create a network graph of authors and topics
+        const svg = d3
+          .select("#networkGraph")
+          .append("svg")
+          .attr("width", 600)
+          .attr("height", 400);
+        // Network graph logic here
+      }
+
+      function drawTimeSeries(data) {
+        // Chart.js for time series of publication counts
+        new Chart(document.getElementById("timeSeries").getContext("2d"), {
+          type: "line",
+          data: {
+            /* time series data */
+          },
+          options: {
+            /* chart options */
+          },
+        });
+      }
+
+      function drawMap(data) {
+        // Leaflet map with a demo pin
+        const map = L.map("map").setView([51.505, -0.09], 13);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(
+          map
+        );
+        L.marker([51.5, -0.09])
+          .addTo(map)
+          .bindPopup("Demo Location")
+          .openPopup();
+      }
+
+      function drawCitationTree(data) {
+        // D3.js or other library to visualize citation trees
+        const svg = d3.select("#citationTree").append("svg");
+        // Tree diagram logic here
+      }
+
+      // Event listeners for filters
+      document
+        .getElementById("filterInput")
+        .addEventListener("input", function (e) {
+          const filteredData = filterData(
+            e.target.value,
+            document.getElementById("filterSelect").value
+          );
+          updateVisualizations(filteredData);
+        });
+
+      function filterData(value, type) {
+        // Logic to filter data based on type and value
+        return articles.filter((article) => article[type].includes(value));
+      }
+
+      // Initial setup
+      updateVisualizations(articles);
+    </script>
+  </body>
+</html>
