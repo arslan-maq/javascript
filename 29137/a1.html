@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Research Visualization Platform</title>
+<style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
+    #dashboard { display: flex; flex-wrap: wrap; }
+    .panel { background: #f9f9f9; border: 1px solid #ddd; margin: 10px; padding: 15px; flex: 1; min-width: 250px; }
+    #networkGraph { width: 100%; height: 400px; background: #eee; position: relative; }
+    .node { position: absolute; width: 10px; height: 10px; background: #007bff; border-radius: 50%; }
+</style>
+</head>
+<body>
+
+<div id="dashboard">
+    <div class="panel" id="filterPanel">
+        <h3>Filters</h3>
+        <input type="text" id="keywordFilter" placeholder="Keywords...">
+        <!-- Add more filters here -->
+    </div>
+    <div class="panel" id="timeline">
+        <h3>Timeline</h3>
+        <!-- Timeline will be populated here -->
+    </div>
+    <div class="panel">
+        <h3>Network Graph</h3>
+        <div id="networkGraph"></div>
+    </div>
+</div>
+
+<script>
+// Sample data from your JSON
+const data = {
+  "articles": [
+    {
+      "id": "A001",
+      "title": "Understanding Machine Learning Algorithms",
+      "authors": ["John Doe", "Jane Smith"],
+      "publication_date": "2023-05-15",
+      "journal": "Journal of AI Research",
+      "citations": 152,
+      "keywords": ["Machine Learning", "Algorithms", "AI"],
+      "abstract": "An in-depth exploration of machine learning algorithms and their applications.",
+      "related_articles": ["A002", "A003"]
+    },
+    {
+      "id": "A002",
+      "title": "The Evolution of Deep Learning Techniques",
+      "authors": ["Alice Johnson", "Mark Brown"],
+      "publication_date": "2022-08-10",
+      "journal": "Deep Learning Journal",
+      "citations": 98,
+      "keywords": ["Deep Learning", "Neural Networks"],
+      "abstract": "A comprehensive review of the evolution and impact of deep learning techniques.",
+      "related_articles": ["A001", "A004"]
+    },
+    {
+      "id": "A003",
+      "title": "AI in Healthcare: Opportunities and Challenges",
+      "authors": ["Emily Davis", "James Wilson"],
+      "publication_date": "2021-11-20",
+      "journal": "Health Informatics",
+      "citations": 75,
+      "keywords": ["AI", "Healthcare", "Data Analysis"],
+      "abstract": "This article discusses the potential of AI in healthcare, along with the challenges faced.",
+      "related_articles": ["A001", "A005"]
+    }
+  ]
+};
+
+// Parse and normalize data
+let articles = data.articles.map(article => {
+    return {
+        ...article,
+        publication_date: new Date(article.publication_date)
+    };
+});
+
+// Function to filter articles
+function filterArticles(filters) {
+    return articles.filter(article => {
+        return (filters.keyword ? article.keywords.includes(filters.keyword) : true);
+        // Add more conditions for other filters
+    });
+}
+
+// Function to update visualizations
+function updateVisualizations(filteredArticles) {
+    updateTimeline(filteredArticles);
+    updateNetworkGraph(filteredArticles);
+}
+
+// Timeline visualization
+function updateTimeline(articles) {
+    let timelineDiv = document.getElementById('timeline');
+    timelineDiv.innerHTML = ''; // Clear previous content
+    // Simplified timeline: count articles per year
+    let yearCount = articles.reduce((acc, article) => {
+        let year = article.publication_date.getFullYear();
+        acc[year] = (acc[year] || 0) + 1;
+        return acc;
+    }, {});
+    
+    for (let year in yearCount) {
+        let div = document.createElement('div');
+        div.textContent = `\${year}: <INLINE_MATH>{yearCount[year]} articles`;
+        timelineDiv.appendChild(div);
+    }
+}
+
+// Basic network graph simulation
+function updateNetworkGraph(articles) {
+    let graph = document.getElementById('networkGraph');
+    graph.innerHTML = ''; // Clear previous nodes
+    articles.forEach((article, index) => {
+        let node = document.createElement('div');
+        node.className = 'node';
+        node.style.left = `</INLINE_MATH>{Math.random() * 90}%`;
+        node.style.top = `\${Math.random() * 90}%`;
+        node.onclick = function() { alert(article.title); }; // Simple interaction
+        graph.appendChild(node);
+    });
+}
+
+// Event listeners for filters
+document.getElementById('keywordFilter').addEventListener('input', function(e) {
+    updateVisualizations(filterArticles({keyword: e.target.value}));
+});
+
+// Initial load
+updateVisualizations(articles);
+
+</script>
+
+</body>
+</html>

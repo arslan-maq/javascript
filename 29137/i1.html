@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Interactive Article Visualization</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vis-network@9.1.0/dist/vis-network.min.js"></script>
+    <style>
+      #dashboard {
+        padding: 20px;
+        font-family: Arial, sans-serif;
+      }
+      h1 {
+        font-size: 24px;
+        margin-bottom: 10px;
+      }
+      #filters {
+        margin-bottom: 20px;
+      }
+      #network-graph,
+      #timeline {
+        width: 100%;
+        height: 500px;
+        border: 1px solid lightgray;
+        margin-top: 20px;
+      }
+      .filter-section {
+        display: flex;
+        justify-content: flex-start;
+        align-items: center;
+        margin-bottom: 20px;
+      }
+      .filter-section label {
+        margin-right: 10px;
+      }
+      #keyword-filter {
+        padding: 5px;
+        width: 200px;
+      }
+      .tooltip {
+        position: absolute;
+        text-align: center;
+        padding: 5px;
+        font-size: 12px;
+        background-color: white;
+        border: 1px solid black;
+        border-radius: 3px;
+        pointer-events: none;
+      }
+      body {
+        font-family: "Arial", sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f4f4f4;
+      }
+
+      #dashboard {
+        max-width: 1200px;
+        margin: 20px auto;
+        padding: 20px;
+        background-color: white;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+
+      h1 {
+        font-size: 26px;
+        margin-bottom: 20px;
+        color: #333;
+      }
+
+      .filter-section {
+        margin-bottom: 20px;
+      }
+
+      #keyword-filter {
+        padding: 8px;
+        border-radius: 5px;
+        border: 1px solid #ccc;
+        width: 300px;
+        margin-right: 10px;
+      }
+
+      button {
+        padding: 8px 16px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="dashboard">
+      <h1>Article Visualization Dashboard</h1>
+      <div class="filter-section">
+        <label for="keyword-filter">Filter by keyword:</label>
+        <input type="text" id="keyword-filter" placeholder="Enter keyword" />
+        <button id="apply-filter">Apply Filter</button>
+      </div>
+      <div id="network-graph"></div>
+      <div id="timeline"></div>
+    </div>
+    <script>
+      // Sample data
+      const data = {
+        articles: [
+          {
+            id: "A001",
+            title: "Understanding Machine Learning Algorithms",
+            authors: ["John Doe", "Jane Smith"],
+            publication_date: "2023-05-15",
+            journal: "Journal of AI Research",
+            citations: 152,
+            keywords: ["Machine Learning", "Algorithms", "AI"],
+            abstract:
+              "An in-depth exploration of machine learning algorithms and their applications.",
+            related_articles: ["A002", "A003"],
+          },
+          {
+            id: "A002",
+            title: "The Evolution of Deep Learning Techniques",
+            authors: ["Alice Johnson", "Mark Brown"],
+            publication_date: "2022-08-10",
+            journal: "Deep Learning Journal",
+            citations: 98,
+            keywords: ["Deep Learning", "Neural Networks"],
+            abstract:
+              "A comprehensive review of the evolution and impact of deep learning techniques.",
+            related_articles: ["A001", "A004"],
+          },
+          {
+            id: "A003",
+            title: "AI in Healthcare: Opportunities and Challenges",
+            authors: ["Emily Davis", "James Wilson"],
+            publication_date: "2021-11-20",
+            journal: "Health Informatics",
+            citations: 75,
+            keywords: ["AI", "Healthcare", "Data Analysis"],
+            abstract:
+              "This article discusses the potential of AI in healthcare, along with the challenges faced.",
+            related_articles: ["A001", "A005"],
+          },
+          {
+            id: "A004",
+            title: "Natural Language Processing: A Comprehensive Guide",
+            authors: ["Michael Green", "Sara Lee"],
+            publication_date: "2020-09-30",
+            journal: "Computational Linguistics Journal",
+            citations: 88,
+            keywords: ["NLP", "Linguistics", "AI"],
+            abstract:
+              "This guide covers the foundations and advancements in natural language processing.",
+            related_articles: ["A002", "A006"],
+          },
+          {
+            id: "A005",
+            title: "The Future of AI in Autonomous Vehicles",
+            authors: ["David Moore", "Linda Adams"],
+            publication_date: "2023-03-12",
+            journal: "Journal of Autonomous Systems",
+            citations: 102,
+            keywords: ["Autonomous Vehicles", "AI", "Robotics"],
+            abstract:
+              "Exploring the impact of artificial intelligence on the development of autonomous vehicles.",
+            related_articles: ["A003", "A007"],
+          },
+          {
+            id: "A006",
+            title: "Exploring Reinforcement Learning Applications",
+            authors: ["Sophia White", "Robert Black"],
+            publication_date: "2021-06-18",
+            journal: "Journal of Reinforcement Learning",
+            citations: 67,
+            keywords: ["Reinforcement Learning", "AI", "Robotics"],
+            abstract:
+              "An overview of reinforcement learning techniques and their real-world applications.",
+            related_articles: ["A004", "A002"],
+          },
+          {
+            id: "A007",
+            title: "Big Data Analytics in Modern Business",
+            authors: ["William Clark", "Emma Turner"],
+            publication_date: "2022-12-01",
+            journal: "Journal of Data Science",
+            citations: 144,
+            keywords: ["Big Data", "Analytics", "AI"],
+            abstract:
+              "How big data analytics is transforming modern business practices.",
+            related_articles: ["A005", "A003"],
+          },
+        ],
+      };
+
+      // Parse and normalize data
+      function parseData(data) {
+        return data.articles.map((article) => ({
+          id: article.id,
+          title: article.title,
+          authors: article.authors,
+          publication_date: new Date(article.publication_date),
+          citations: article.citations,
+          keywords: article.keywords,
+          abstract: article.abstract,
+          related_articles: article.related_articles,
+        }));
+      }
+
+      // Initialize network graph
+      function initializeNetworkGraph(nodes, edges) {
+        const container = document.getElementById("network-graph");
+        const data = { nodes: nodes, edges: edges };
+        const options = {
+          nodes: {
+            shape: "dot",
+            size: 15,
+          },
+          edges: {
+            width: 0.5,
+          },
+          physics: {
+            stabilization: false,
+          },
+        };
+        new vis.Network(container, data, options);
+      }
+
+      // Create network graph data
+      function createNetworkData(articles) {
+        const nodes = articles.map((article) => ({
+          id: article.id,
+          label: article.title,
+          title: `Authors: ${article.authors.join(", ")}\nCitations: ${
+            article.citations
+          }\nDate: ${article.publication_date.toLocaleDateString()}`,
+        }));
+        const edges = articles.flatMap((article) =>
+          article.related_articles.map((relatedId) => ({
+            from: article.id,
+            to: relatedId,
+          }))
+        );
+        return { nodes, edges };
+      }
+
+      // Render timeline
+      function renderTimeline(articles) {
+        // Remove previous SVG if it exists
+        d3.select("#timeline").selectAll("svg").remove();
+
+        const width = document.getElementById("timeline").offsetWidth;
+        const height = 300;
+        const margin = { top: 20, right: 20, bottom: 50, left: 50 };
+
+        const svg = d3
+          .select("#timeline")
+          .append("svg")
+          .attr("width", width)
+          .attr("height", height)
+          .append("g")
+          .attr("transform", `translate(${margin.left}, ${margin.top})`);
+
+        const x = d3
+          .scaleTime()
+          .domain(d3.extent(articles, (d) => d.publication_date))
+          .range([0, width - margin.left - margin.right]);
+
+        const y = d3
+          .scaleLinear()
+          .domain([0, d3.max(articles, (d) => d.citations)])
+          .range([height - margin.top - margin.bottom, 0]);
+
+        svg
+          .append("g")
+          .attr(
+            "transform",
+            `translate(0, ${height - margin.top - margin.bottom})`
+          )
+          .call(d3.axisBottom(x).ticks(d3.timeYear));
+
+        svg.append("g").call(d3.axisLeft(y));
+
+        svg
+          .append("path")
+          .datum(articles)
+          .attr("fill", "none")
+          .attr("stroke", "steelblue")
+          .attr("stroke-width", 1.5)
+          .attr(
+            "d",
+            d3
+              .line()
+              .x((d) => x(d.publication_date))
+              .y((d) => y(d.citations))
+          );
+
+        svg
+          .selectAll("circle")
+          .data(articles)
+          .enter()
+          .append("circle")
+          .attr("cx", (d) => x(d.publication_date))
+          .attr("cy", (d) => y(d.citations))
+          .attr("r", 4)
+          .attr("fill", "orange")
+          .append("title")
+          .text((d) => `${d.title}: ${d.citations} citations`);
+      }
+
+      // Render visualization
+      function renderVisualization() {
+        const parsedData = parseData(data);
+        const { nodes, edges } = createNetworkData(parsedData);
+        initializeNetworkGraph(nodes, edges);
+        renderTimeline(parsedData);
+      }
+
+      // Apply filter
+      function applyFilter() {
+        const keyword = document
+          .getElementById("keyword-filter")
+          .value.toLowerCase();
+        const filteredArticles = data.articles.filter((article) =>
+          article.keywords.some((kw) => kw.toLowerCase().includes(keyword))
+        );
+        const parsedData = parseData({ articles: filteredArticles });
+        const { nodes, edges } = createNetworkData(parsedData);
+        initializeNetworkGraph(nodes, edges);
+        renderTimeline(parsedData);
+      }
+
+      // Event listeners
+      document
+        .getElementById("apply-filter")
+        .addEventListener("click", applyFilter);
+
+      // Initial render
+      renderVisualization();
+    </script>
+  </body>
+</html>

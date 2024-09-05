@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Article Visualization Platform</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
+    #dashboard { display: flex; flex-wrap: wrap; }
+    .filter, .visualization { margin: 10px; padding: 20px; border: 1px solid #ddd; }
+    #timeline { width: 100%; height: 150px; }
+</style>
+</head>
+<body>
+
+<div id="dashboard">
+    <div class="filter">
+        <input type="text" id="keywordFilter" placeholder="Filter by keyword">
+        <input type="text" id="authorFilter" placeholder="Filter by author">
+        <input type="date" id="dateFilter" placeholder="Filter by date">
+        <button onclick="applyFilters()">Apply Filters</button>
+    </div>
+    <div class="visualization">
+        <h2>Article Timeline</h2>
+        <div id="timeline"></div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const data = {
+  "articles": [
+    {
+      "id": "A001",
+      "title": "Understanding Machine Learning Algorithms",
+      "authors": ["John Doe", "Jane Smith"],
+      "publication_date": "2023-05-15",
+      "journal": "Journal of AI Research",
+      "citations": 152,
+      "keywords": ["Machine Learning", "Algorithms", "AI"],
+      "abstract": "An in-depth exploration of machine learning algorithms and their applications.",
+      "related_articles": ["A002", "A003"]
+    },
+    {
+      "id": "A002",
+      "title": "The Evolution of Deep Learning Techniques",
+      "authors": ["Alice Johnson", "Mark Brown"],
+      "publication_date": "2022-08-10",
+      "journal": "Deep Learning Journal",
+      "citations": 98,
+      "keywords": ["Deep Learning", "Neural Networks"],
+      "abstract": "A comprehensive review of the evolution and impact of deep learning techniques.",
+      "related_articles": ["A001", "A004"]
+    },
+    {
+      "id": "A003",
+      "title": "AI in Healthcare: Opportunities and Challenges",
+      "authors": ["Emily Davis", "James Wilson"],
+      "publication_date": "2021-11-20",
+      "journal": "Health Informatics",
+      "citations": 75,
+      "keywords": ["AI", "Healthcare", "Data Analysis"],
+      "abstract": "This article discusses the potential of AI in healthcare, along with the challenges faced.",
+      "related_articles": ["A001", "A005"]
+    }
+  ]
+};
+
+    let articles = data.articles.map(article => {
+        article.publication_date = new Date(article.publication_date);
+        return article;
+    });
+
+    const timeline = document.getElementById('timeline');
+
+    function applyFilters() {
+        const keyword = document.getElementById('keywordFilter').value.toLowerCase();
+        const author = document.getElementById('authorFilter').value.toLowerCase();
+        const date = flatpickr("#dateFilter", {}).selectedDates[0];
+
+        const filteredArticles = articles.filter(article => {
+            const matchesKeyword = article.keywords.some(k => k.toLowerCase().includes(keyword)) || 
+                                   article.title.toLowerCase().includes(keyword);
+            const matchesAuthor = article.authors.some(a => a.toLowerCase().includes(author));
+            const matchesDate = date ? article.publication_date.getTime() === date.getTime() : true;
+
+            return matchesKeyword && matchesAuthor && matchesDate;
+        });
+
+        updateTimeline(filteredArticles);
+    }
+
+    function updateTimeline(articlesToShow) {
+        timeline.innerHTML = ''; // Clear previous content
+        articlesToShow.forEach(article => {
+            const div = document.createElement('div');
+            div.textContent = `\${article.title} - \${article.publication_date.toDateString()}`;
+            div.style.padding = '5px';
+            div.style.marginBottom = '5px';
+            div.style.backgroundColor = '#f0f0f0';
+            timeline.appendChild(div);
+        });
+    }
+
+    flatpickr("#dateFilter", {});
+
+    // Initial load
+    updateTimeline(articles);
+});
+</script>
+
+</body>
+</html>
