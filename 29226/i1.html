@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Research Article Visualizer</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/6.7.0/d3.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f5f5f5;
+        margin-top: 20px;
+      }
+      .container {
+        max-width: 1200px;
+      }
+      .card {
+        margin-bottom: 20px;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+      .graph,
+      .timeline,
+      .keyword-cloud {
+        background-color: #ffffff;
+      }
+      .keyword-cloud span {
+        display: inline-block;
+        padding: 10px;
+        margin: 5px;
+        background-color: #e9ecef;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+      }
+      .keyword-cloud span:hover {
+        background-color: #dee2e6;
+      }
+      .chart-container {
+        width: 100%;
+        height: 400px;
+      }
+      .tooltip {
+        position: absolute;
+        background: #333;
+        color: #fff;
+        padding: 5px;
+        border-radius: 4px;
+        font-size: 12px;
+        pointer-events: none;
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1 class="text-center mb-4">Research Article Visualizer</h1>
+
+      <!-- Filters Section -->
+      <div class="card filters">
+        <div class="row mb-3">
+          <div class="col-md-6">
+            <label for="authorFilter" class="form-label"
+              >Filter by Author:</label
+            >
+            <select id="authorFilter" class="form-select">
+              <option value="all">All Authors</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label for="keywordFilter" class="form-label"
+              >Filter by Keyword:</label
+            >
+            <select id="keywordFilter" class="form-select">
+              <option value="all">All Keywords</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Interactive Graph Section -->
+      <div class="card graph">
+        <h2>Interactive Graph Visualization</h2>
+        <div id="graph"></div>
+        <div class="tooltip" id="tooltip"></div>
+      </div>
+
+      <!-- Timeline View Section -->
+      <div class="card timeline">
+        <h2>Interactive Timeline</h2>
+        <canvas id="timelineChart"></canvas>
+      </div>
+
+      <!-- Keyword Cloud Section -->
+      <div class="card keyword-cloud">
+        <h2>Keyword Cloud</h2>
+        <div id="keyword-cloud"></div>
+      </div>
+    </div>
+
+    <script>
+      let data = {
+        articles: [
+          {
+            id: 1,
+            title: "Advances in Machine Learning",
+            authors: ["John Doe", "Jane Smith"],
+            keywords: [
+              "machine learning",
+              "artificial intelligence",
+              "neural networks",
+            ],
+            publication_year: 2020,
+            citations: 25,
+            references: [2, 3],
+          },
+          {
+            id: 2,
+            title: "Deep Learning for Natural Language Processing",
+            authors: ["Alice Johnson", "Michael Brown"],
+            keywords: ["deep learning", "NLP", "transformers"],
+            publication_year: 2019,
+            citations: 30,
+            references: [],
+          },
+          {
+            id: 3,
+            title: "AI in Healthcare: Current Trends",
+            authors: ["James White", "Lucy Green"],
+            keywords: ["AI", "healthcare", "data analysis"],
+            publication_year: 2021,
+            citations: 15,
+            references: [1],
+          },
+          {
+            id: 4,
+            title: "Ethical Considerations in AI",
+            authors: ["David Black", "Emma Williams"],
+            keywords: ["ethics", "AI", "privacy"],
+            publication_year: 2020,
+            citations: 12,
+            references: [1, 2],
+          },
+          {
+            id: 5,
+            title: "Big Data Analytics in Medicine",
+            authors: ["Liam Miller", "Sophia Johnson"],
+            keywords: ["big data", "analytics", "medicine"],
+            publication_year: 2018,
+            citations: 20,
+            references: [3],
+          },
+          {
+            id: 6,
+            title: "AI and Cybersecurity",
+            authors: ["Olivia Wilson", "Benjamin Taylor"],
+            keywords: ["AI", "cybersecurity", "machine learning"],
+            publication_year: 2022,
+            citations: 5,
+            references: [1, 4],
+          },
+        ],
+      };
+
+      // Helper function to filter articles
+      function filterArticles(authorFilter, keywordFilter) {
+        return data.articles.filter((article) => {
+          const authorMatch =
+            authorFilter === "all" || article.authors.includes(authorFilter);
+          const keywordMatch =
+            keywordFilter === "all" || article.keywords.includes(keywordFilter);
+          return authorMatch && keywordMatch;
+        });
+      }
+
+      // Populate Author Filter
+      function populateAuthorFilter() {
+        const authorFilter = document.getElementById("authorFilter");
+        const authors = new Set(
+          data.articles.flatMap((article) => article.authors)
+        );
+
+        authors.forEach((author) => {
+          let option = document.createElement("option");
+          option.value = author;
+          option.textContent = author;
+          authorFilter.appendChild(option);
+        });
+      }
+
+      // Populate Keyword Filter
+      function populateKeywordFilter() {
+        const keywordFilter = document.getElementById("keywordFilter");
+        const keywords = new Set(
+          data.articles.flatMap((article) => article.keywords)
+        );
+
+        keywords.forEach((keyword) => {
+          let option = document.createElement("option");
+          option.value = keyword;
+          option.textContent = keyword;
+          keywordFilter.appendChild(option);
+        });
+      }
+
+      // Update all visualizations when filter changes
+      function updateVisualizations() {
+        const authorFilter = document.getElementById("authorFilter").value;
+        const keywordFilter = document.getElementById("keywordFilter").value;
+        const filteredArticles = filterArticles(authorFilter, keywordFilter);
+
+        updateKeywordCloud(filteredArticles);
+        updateGraph(filteredArticles);
+        updateTimeline(filteredArticles);
+      }
+
+      // Create Keyword Cloud
+      function updateKeywordCloud(filteredData) {
+        const keywordCloud = document.getElementById("keyword-cloud");
+        keywordCloud.innerHTML = ""; // Clear previous data
+        let keywordFrequency = {};
+
+        filteredData.forEach((article) => {
+          article.keywords.forEach((keyword) => {
+            keywordFrequency[keyword] = (keywordFrequency[keyword] || 0) + 1;
+          });
+        });
+
+        Object.keys(keywordFrequency).forEach((keyword) => {
+          let span = document.createElement("span");
+          span.textContent = `${keyword} (${keywordFrequency[keyword]})`;
+          keywordCloud.appendChild(span);
+        });
+      }
+
+      // Create Timeline Chart
+      let timelineChart = null;
+      function updateTimeline(filteredData) {
+        const timelineCtx = document
+          .getElementById("timelineChart")
+          .getContext("2d");
+        const publicationYears = filteredData.map(
+          (article) => article.publication_year
+        );
+        const uniqueYears = [...new Set(publicationYears)].sort();
+        const articleCountPerYear = uniqueYears.map(
+          (year) =>
+            publicationYears.filter((pubYear) => pubYear === year).length
+        );
+
+        if (timelineChart) {
+          timelineChart.destroy(); // Destroy the old chart before creating a new one
+        }
+
+        timelineChart = new Chart(timelineCtx, {
+          type: "line",
+          data: {
+            labels: uniqueYears,
+            datasets: [
+              {
+                label: "Articles Published Over Time",
+                data: articleCountPerYear,
+                backgroundColor: "rgba(75, 192, 192, 0.2)",
+                borderColor: "rgba(75, 192, 192, 1)",
+                borderWidth: 1,
+              },
+            ],
+          },
+          options: {
+            scales: {
+              y: {
+                beginAtZero: true,
+              },
+            },
+          },
+        });
+      }
+
+      // Create Interactive Graph using D3.js
+      function updateGraph(filteredData) {
+        document.getElementById("graph").innerHTML = ""; // Clear the previous graph
+
+        const width = 600,
+          height = 400;
+
+        const svg = d3
+          .select("#graph")
+          .append("svg")
+          .attr("width", "100%")
+          .attr("height", height)
+          .attr("viewBox", `0 0 ${width} ${height}`)
+          .attr("preserveAspectRatio", "xMidYMid meet");
+
+        // Create the nodes array from the filtered data
+        const nodes = filteredData.map((article) => ({
+          id: article.id,
+          title: article.title,
+        }));
+
+        // Filter the links (references) to include only those with both source and target in the filtered data
+        const validIds = new Set(nodes.map((d) => d.id)); // Create a set of valid article IDs from filtered data
+        const links = [];
+        filteredData.forEach((article) => {
+          article.references.forEach((ref) => {
+            if (validIds.has(ref)) {
+              // Ensure both the article and its reference exist in the filtered data
+              links.push({ source: article.id, target: ref });
+            }
+          });
+        });
+
+        const simulation = d3
+          .forceSimulation(nodes)
+          .force(
+            "link",
+            d3.forceLink(links).id((d) => d.id)
+          )
+          .force("charge", d3.forceManyBody().strength(-200))
+          .force("center", d3.forceCenter(width / 2, height / 2));
+
+        const link = svg
+          .append("g")
+          .attr("class", "links")
+          .selectAll("line")
+          .data(links)
+          .enter()
+          .append("line")
+          .attr("stroke-width", 1)
+          .attr("stroke", "#999");
+
+        const node = svg
+          .append("g")
+          .attr("class", "nodes")
+          .selectAll("circle")
+          .data(nodes)
+          .enter()
+          .append("circle")
+          .attr("r", 5)
+          .attr("fill", "#69b3a2")
+          .call(
+            d3
+              .drag()
+              .on("start", dragStarted)
+              .on("drag", dragged)
+              .on("end", dragEnded)
+          );
+
+        node.append("title").text((d) => d.title);
+
+        simulation.on("tick", () => {
+          link
+            .attr("x1", (d) => d.source.x)
+            .attr("y1", (d) => d.source.y)
+            .attr("x2", (d) => d.target.x)
+            .attr("y2", (d) => d.target.y);
+
+          node.attr("cx", (d) => d.x).attr("cy", (d) => d.y);
+        });
+
+        function dragStarted(event, d) {
+          if (!event.active) simulation.alphaTarget(0.3).restart();
+          d.fx = d.x;
+          d.fy = d.y;
+        }
+
+        function dragged(event, d) {
+          d.fx = event.x;
+          d.fy = event.y;
+        }
+
+        function dragEnded(event, d) {
+          if (!event.active) simulation.alphaTarget(0);
+          d.fx = null;
+          d.fy = null;
+        }
+      }
+
+      // Initialize Filters and Visualizations
+      function initialize() {
+        populateAuthorFilter();
+        populateKeywordFilter();
+        updateVisualizations();
+
+        document
+          .getElementById("authorFilter")
+          .addEventListener("change", updateVisualizations);
+        document
+          .getElementById("keywordFilter")
+          .addEventListener("change", updateVisualizations);
+      }
+
+      initialize();
+    </script>
+  </body>
+</html>

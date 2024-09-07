@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Research Article Explorer</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/d3@7" />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+      }
+      #graph,
+      #timeline,
+      #keywordCloud {
+        width: 100%;
+        height: 400px;
+        margin: 20px 0;
+      }
+      .filter-section {
+        margin: 10px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <h1>Research Article Explorer</h1>
+
+      <!-- Filters -->
+      <div class="filter-section">
+        <label
+          >Year:
+          <input
+            type="range"
+            id="yearFilter"
+            min="2018"
+            max="2022"
+            value="2022"
+        /></label>
+        <label
+          >Citations: <input type="number" id="citationFilter" min="0"
+        /></label>
+        <button onclick="applyFilters()">Apply Filters</button>
+      </div>
+
+      <!-- Graph Visualization -->
+      <div id="graph"></div>
+
+      <!-- Timeline View -->
+      <div id="timeline"></div>
+
+      <!-- Keyword Cloud -->
+      <div id="keywordCloud"></div>
+    </div>
+
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script>
+      // Data loading (assuming data is already loaded or fetched from a source)
+      let data = {
+        articles: [
+          {
+            id: 1,
+            title: "Advances in Machine Learning",
+            authors: ["John Doe", "Jane Smith"],
+            keywords: [
+              "machine learning",
+              "artificial intelligence",
+              "neural networks",
+            ],
+            publication_year: 2020,
+            citations: 25,
+            references: [2, 3],
+          },
+          {
+            id: 2,
+            title: "Deep Learning for Natural Language Processing",
+            authors: ["Alice Johnson", "Michael Brown"],
+            keywords: ["deep learning", "NLP", "transformers"],
+            publication_year: 2019,
+            citations: 30,
+            references: [],
+          },
+          {
+            id: 3,
+            title: "AI in Healthcare: Current Trends",
+            authors: ["James White", "Lucy Green"],
+            keywords: ["AI", "healthcare", "data analysis"],
+            publication_year: 2021,
+            citations: 15,
+            references: [1],
+          },
+          {
+            id: 4,
+            title: "Ethical Considerations in AI",
+            authors: ["David Black", "Emma Williams"],
+            keywords: ["ethics", "AI", "privacy"],
+            publication_year: 2020,
+            citations: 12,
+            references: [1, 2],
+          },
+          {
+            id: 5,
+            title: "Big Data Analytics in Medicine",
+            authors: ["Liam Miller", "Sophia Johnson"],
+            keywords: ["big data", "analytics", "medicine"],
+            publication_year: 2018,
+            citations: 20,
+            references: [3],
+          },
+          {
+            id: 6,
+            title: "AI and Cybersecurity",
+            authors: ["Olivia Wilson", "Benjamin Taylor"],
+            keywords: ["AI", "cybersecurity", "machine learning"],
+            publication_year: 2022,
+            citations: 5,
+            references: [1, 4],
+          },
+        ],
+      };
+
+      // Function to prepare data for visualizations
+      function prepareData() {
+        let nodes = [],
+          links = [];
+        let keywordCloud = {};
+        let timelineData = {};
+
+        data.articles.forEach((article) => {
+          nodes.push({ id: article.id, type: "article", name: article.title });
+          article.authors.forEach((author) => {
+            nodes.push({ id: author, type: "author", name: author });
+            links.push({
+              source: article.id,
+              target: author,
+              type: "authored",
+            });
+          });
+          article.keywords.forEach((keyword) => {
+            keywordCloud[keyword] = (keywordCloud[keyword] || 0) + 1;
+            links.push({
+              source: article.id,
+              target: keyword,
+              type: "keyword",
+            });
+          });
+          // Timeline data preparation
+          if (!timelineData[article.publication_year]) {
+            timelineData[article.publication_year] = { count: 0, keywords: {} };
+          }
+          timelineData[article.publication_year].count++;
+          article.keywords.forEach(
+            (k) =>
+              (timelineData[article.publication_year].keywords[k] =
+                (timelineData[article.publication_year].keywords[k] || 0) + 1)
+          );
+        });
+
+        return { nodes, links, keywordCloud, timelineData };
+      }
+
+      // Visualization Functions
+      function drawGraph(nodes, links) {
+        const svg = d3
+          .select("#graph")
+          .append("svg")
+          .attr("width", "100%")
+          .attr("height", "400");
+        // Graph drawing logic with D3 force simulation
+      }
+
+      function drawTimeline(timelineData) {
+        // Convert object to array for D3
+        let dataArray = Object.entries(timelineData).map(([year, data]) => ({
+          year: +year,
+          ...data,
+        }));
+        // D3 timeline logic here
+      }
+
+      function drawKeywordCloud(words) {
+        d3.layout
+          .cloud()
+          .size([300, 300])
+          .words(
+            Object.entries(words).map((d) => ({
+              text: d[0],
+              size: 10 + d[1] * 10,
+            }))
+          )
+          .on("end", drawCloud)
+          .start();
+      }
+
+      function drawCloud(words) {
+        d3.select("#keywordCloud")
+          .html("")
+          .append("svg")
+          .attr("width", 300)
+          .attr("height", 300)
+          .append("g")
+          .attr("transform", "translate(150,150)")
+          .selectAll("text")
+          .data(words)
+          .enter()
+          .append("text")
+          .style("font-size", (d) => d.size + "px")
+          .attr("text-anchor", "middle")
+          .attr(
+            "transform",
+            (d) => `translate(${[d.x, d.y]})rotate(${d.rotate})`
+          )
+          .text((d) => d.text);
+      }
+
+      // Initial draw
+      let { nodes, links, keywordCloud, timelineData } = prepareData();
+      drawGraph(nodes, links);
+      drawTimeline(timelineData);
+      drawKeywordCloud(keywordCloud);
+
+      // Filter application
+      function applyFilters() {
+        // Implement filter logic here
+        // Then redraw visualizations
+      }
+    </script>
+  </body>
+</html>

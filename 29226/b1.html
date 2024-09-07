@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Research Article Explorer</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+      }
+      #graph,
+      #timeline,
+      #keywordCloud {
+        width: 100%;
+        height: 300px;
+        border: 1px solid #ccc;
+        margin-bottom: 20px;
+      }
+      .filters {
+        margin: 10px 0;
+      }
+      .node {
+        cursor: pointer;
+      }
+      .node:hover {
+        stroke: #000;
+        stroke-width: 1.5px;
+      }
+      .link {
+        stroke: #999;
+        stroke-opacity: 0.6;
+      }
+      .timeline-bar {
+        fill: steelblue;
+        cursor: pointer;
+      }
+      .timeline-bar:hover {
+        fill: brown;
+      }
+    </style>
+  </head>
+  <body>
+    <div>
+      <h1>Research Article Explorer</h1>
+      <div class="filters">
+        <input type="number" id="yearStart" placeholder="Start Year" /> to
+        <input type="number" id="yearEnd" placeholder="End Year" />
+        <input type="text" id="keywordFilter" placeholder="Filter by Keyword" />
+        <button onclick="applyFilters()">Apply Filters</button>
+      </div>
+      <div id="graph"></div>
+      <div id="timeline"></div>
+      <div id="keywordCloud"></div>
+    </div>
+
+    <script>
+      // Data
+      let data = {
+        articles: [
+          {
+            id: 1,
+            title: "Advances in Machine Learning",
+            authors: ["John Doe", "Jane Smith"],
+            keywords: [
+              "machine learning",
+              "artificial intelligence",
+              "neural networks",
+            ],
+            publication_year: 2020,
+            citations: 25,
+            references: [2, 3],
+          },
+          {
+            id: 2,
+            title: "Deep Learning for Natural Language Processing",
+            authors: ["Alice Johnson", "Michael Brown"],
+            keywords: ["deep learning", "NLP", "transformers"],
+            publication_year: 2019,
+            citations: 30,
+            references: [],
+          },
+          {
+            id: 3,
+            title: "AI in Healthcare: Current Trends",
+            authors: ["James White", "Lucy Green"],
+            keywords: ["AI", "healthcare", "data analysis"],
+            publication_year: 2021,
+            citations: 15,
+            references: [1],
+          },
+          {
+            id: 4,
+            title: "Ethical Considerations in AI",
+            authors: ["David Black", "Emma Williams"],
+            keywords: ["ethics", "AI", "privacy"],
+            publication_year: 2020,
+            citations: 12,
+            references: [1, 2],
+          },
+          {
+            id: 5,
+            title: "Big Data Analytics in Medicine",
+            authors: ["Liam Miller", "Sophia Johnson"],
+            keywords: ["big data", "analytics", "medicine"],
+            publication_year: 2018,
+            citations: 20,
+            references: [3],
+          },
+          {
+            id: 6,
+            title: "AI and Cybersecurity",
+            authors: ["Olivia Wilson", "Benjamin Taylor"],
+            keywords: ["AI", "cybersecurity", "machine learning"],
+            publication_year: 2022,
+            citations: 5,
+            references: [1, 4],
+          },
+        ],
+      };
+      // Global variables
+      let svgGraph, svgTimeline, svgKeywordCloud;
+      let graphData, timelineData, keywordData;
+
+      function init() {
+        graphData = prepareGraphData(data.articles);
+        timelineData = prepareTimelineData(data.articles);
+        keywordData = prepareKeywordData(data.articles);
+
+        // Initialize visualizations
+        initGraph();
+        initTimeline();
+        initKeywordCloud();
+      }
+
+      function prepareGraphData(articles) {
+        let nodes = [],
+          links = [];
+        articles.forEach((article) => {
+          nodes.push({
+            id: article.id,
+            type: "article",
+            name: article.title,
+            size: article.citations,
+          });
+          article.authors.forEach((author) =>
+            nodes.push({ id: author, type: "author", name: author })
+          );
+          article.keywords.forEach((keyword) =>
+            nodes.push({ id: keyword, type: "keyword", name: keyword })
+          );
+          article.references.forEach((ref) =>
+            links.push({ source: article.id, target: ref })
+          );
+        });
+        return { nodes, links };
+      }
+
+      function initGraph() {
+        svgGraph = d3
+          .select("#graph")
+          .append("svg")
+          .attr("width", "100%")
+          .attr("height", "300");
+
+        let simulation = d3
+          .forceSimulation(graphData.nodes)
+          .force(
+            "link",
+            d3.forceLink(graphData.links).id((d) => d.id)
+          )
+          .force("charge", d3.forceManyBody())
+          .force("center", d3.forceCenter(500 / 2, 300 / 2));
+
+        let link = svgGraph
+          .append("g")
+          .attr("class", "links")
+          .selectAll("line")
+          .data(graphData.links)
+          .enter()
+          .append("line")
+          .attr("class", "link");
+
+        let node = svgGraph
+          .append("g")
+          .attr("class", "nodes")
+          .selectAll("circle")
+          .data(graphData.nodes)
+          .enter()
+          .append("circle")
+          .attr("class", "node")
+          .attr("r", (d) => (d.type === "article" ? 5 + d.size * 0.1 : 3))
+          .call(
+            d3
+              .drag()
+              .on("start", dragstarted)
+              .on("drag", dragged)
+              .on("end", dragended)
+          );
+
+        node.append("title").text((d) => d.name);
+
+        simulation.on("tick", () => {
+          link
+            .attr("x1", (d) => d.source.x)
+            .attr("y1", (d) => d.source.y)
+            .attr("x2", (d) => d.target.x)
+            .attr("y2", (d) => d.target.y);
+
+          node.attr("cx", (d) => d.x).attr("cy", (d) => d.y);
+        });
+
+        function dragstarted(event, d) {
+          if (!event.active) simulation.alphaTarget(0.3).restart();
+          d.fx = d.x;
+          d.fy = d.y;
+        }
+
+        function dragged(event, d) {
+          d.fx = event.x;
+          d.fy = event.y;
+        }
+
+        function dragended(event, d) {
+          if (!event.active) simulation.alphaTarget(0);
+          d.fx = null;
+          d.fy = null;
+        }
+      }
+
+      function prepareTimelineData(articles) {
+        return articles.map((article) => ({
+          year: article.publication_year,
+          title: article.title,
+        }));
+      }
+
+      function initTimeline() {
+        svgTimeline = d3
+          .select("#timeline")
+          .append("svg")
+          .attr("width", "100%")
+          .attr("height", "300");
+
+        let margin = { top: 20, right: 20, bottom: 30, left: 50 },
+          width = +svgTimeline.attr("width") - margin.left - margin.right,
+          height = +svgTimeline.attr("height") - margin.top - margin.bottom;
+
+        let x = d3.scaleBand().range([0, width]).padding(0.1);
+        let y = d3.scaleLinear().range([height, 0]);
+
+        let g = svgTimeline
+          .append("g")
+          .attr(
+            "transform",
+            "translate(" + margin.left + "," + margin.top + ")"
+          );
+
+        x.domain(timelineData.map((d) => d.year));
+        y.domain([
+          0,
+          d3.max(
+            timelineData,
+            (d) => timelineData.filter((e) => e.year === d.year).length
+          ),
+        ]);
+
+        g.selectAll(".bar")
+          .data(timelineData)
+          .enter()
+          .append("rect")
+          .attr("class", "timeline-bar")
+          .attr("x", (d) => x(d.year))
+          .attr("width", x.bandwidth())
+          .attr("y", (d) =>
+            y(timelineData.filter((e) => e.year === d.year).length)
+          )
+          .attr(
+            "height",
+            (d) =>
+              height - y(timelineData.filter((e) => e.year === d.year).length)
+          );
+      }
+
+      function prepareKeywordData(articles) {
+        let keywords = {};
+        articles.forEach((article) => {
+          article.keywords.forEach((keyword) => {
+            keywords[keyword] = (keywords[keyword] || 0) + 1;
+          });
+        });
+        return Object.entries(keywords).map(([word, size]) => ({
+          text: word,
+          size: size,
+        }));
+      }
+
+      function initKeywordCloud() {
+        svgKeywordCloud = d3
+          .select("#keywordCloud")
+          .append("svg")
+          .attr("width", "100%")
+          .attr("height", "300");
+
+        d3.layout
+          .cloud()
+          .size([500, 300])
+          .words(keywordData)
+          .rotate(0)
+          .fontSize((d) => d.size * 5)
+          .on("end", draw)
+          .start();
+
+        function draw(words) {
+          svgKeywordCloud
+            .append("g")
+            .attr("transform", "translate(250,150)")
+            .selectAll("text")
+            .data(words)
+            .enter()
+            .append("text")
+            .style("font-size", (d) => d.size + "px")
+            .style("fill", "#69b3a2")
+            .attr("text-anchor", "middle")
+            .attr(
+              "transform",
+              (d) => "translate(" + [d.x, d.y] + ")rotate(" + d.rotate + ")"
+            )
+            .text((d) => d.text);
+        }
+      }
+
+      function applyFilters() {
+        let startYear = document.getElementById("yearStart").value;
+        let endYear = document.getElementById("yearEnd").value;
+        let keyword = document
+          .getElementById("keywordFilter")
+          .value.toLowerCase();
+
+        // Here you would filter your data based on the inputs and update the visualizations
+        // This is a placeholder for actual filtering logic
+        console.log("Filters:", { startYear, endYear, keyword });
+        // Update visualizations here
+      }
+
+      init();
+    </script>
+  </body>
+</html>

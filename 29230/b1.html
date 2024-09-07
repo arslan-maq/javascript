@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Research Article Visualizer</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+      }
+      .container {
+        display: flex;
+      }
+      .sidebar {
+        width: 250px;
+        background: #f4f4f4;
+        padding: 10px;
+      }
+      .main-content {
+        flex-grow: 1;
+        padding: 20px;
+      }
+      .visualization {
+        margin-bottom: 20px;
+      }
+      #network-graph,
+      #timeline-view,
+      #keyword-cloud {
+        width: 100%;
+        height: 400px;
+        background: white;
+      }
+      .filter-item {
+        margin-bottom: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="sidebar">
+        <h3>Filters</h3>
+        <div class="filter-item">
+          <label>Year:</label>
+          <input
+            type="range"
+            id="yearFilter"
+            min="2020"
+            max="2023"
+            value="2023"
+          />
+        </div>
+        <div class="filter-item">
+          <label>Category:</label>
+          <select id="categoryFilter">
+            <option value="">All</option>
+            <!-- Options will be dynamically added -->
+          </select>
+        </div>
+        <!-- Add more filters here -->
+        <button onclick="applyFilters()">Apply Filters</button>
+      </div>
+      <div class="main-content">
+        <div id="network-graph" class="visualization"></div>
+        <div id="timeline-view" class="visualization"></div>
+        <div id="keyword-cloud" class="visualization"></div>
+      </div>
+    </div>
+
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script>
+      const documents = {
+        documents: [
+          {
+            id: "doc1",
+            title: "Exploring Quantum Computing",
+            authors: ["Emily Johnson", "Michael Lee"],
+            category: "Computer Science",
+            publicationYear: 2023,
+            metrics: {
+              views: 1500,
+              downloads: 320,
+              citations: 50,
+            },
+            tags: ["Quantum Computing", "Computational Theory", "Physics"],
+          },
+          {
+            id: "doc2",
+            title: "Advances in Genomics",
+            authors: ["Sophia Patel"],
+            category: "Biology",
+            publicationYear: 2022,
+            metrics: {
+              views: 2000,
+              downloads: 500,
+              citations: 80,
+            },
+            tags: ["Genomics", "Genetics", "Bioinformatics"],
+          },
+          {
+            id: "doc3",
+            title: "The Future of Renewable Energy",
+            authors: ["Liam Rodriguez", "Olivia Hernandez"],
+            category: "Environmental Science",
+            publicationYear: 2021,
+            metrics: {
+              views: 1800,
+              downloads: 400,
+              citations: 60,
+            },
+            tags: ["Renewable Energy", "Sustainability", "Climate Change"],
+          },
+          {
+            id: "doc4",
+            title: "Machine Learning in Healthcare",
+            authors: ["Ethan Brown"],
+            category: "Healthcare",
+            publicationYear: 2023,
+            metrics: {
+              views: 2200,
+              downloads: 600,
+              citations: 70,
+            },
+            tags: ["Machine Learning", "Healthcare", "AI"],
+          },
+          {
+            id: "doc5",
+            title: "Understanding Economic Indicators",
+            authors: ["Ava Wilson", "James Anderson"],
+            category: "Economics",
+            publicationYear: 2020,
+            metrics: {
+              views: 1600,
+              downloads: 350,
+              citations: 40,
+            },
+            tags: ["Economics", "Market Analysis", "Indicators"],
+          },
+        ],
+      };
+
+      let svgNetwork, svgTimeline, svgCloud;
+
+      function initVisualizations() {
+        // Initialize Network Graph
+        svgNetwork = d3
+          .select("#network-graph")
+          .append("svg")
+          .attr("width", "100%")
+          .attr("height", "400");
+
+        // Initialize Timeline View
+        svgTimeline = d3
+          .select("#timeline-view")
+          .append("svg")
+          .attr("width", "100%")
+          .attr("height", "400");
+
+        // Initialize Keyword Cloud
+        svgCloud = d3
+          .select("#keyword-cloud")
+          .append("svg")
+          .attr("width", "100%")
+          .attr("height", "400");
+
+        drawNetworkGraph();
+        drawTimeline();
+        drawKeywordCloud();
+      }
+
+      function drawNetworkGraph() {
+        // Simplified network graph
+        const nodes = documents.map((doc) => ({
+          id: doc.id,
+          name: doc.title,
+          group: doc.category,
+        }));
+        const links = documents.flatMap((doc) =>
+          doc.authors.map((author) => ({
+            source: doc.id,
+            target: author,
+            value: 1,
+          }))
+        );
+
+        const simulation = d3
+          .forceSimulation(nodes)
+          .force(
+            "link",
+            d3.forceLink(links).id((d) => d.id)
+          )
+          .force("charge", d3.forceManyBody())
+          .force("center", d3.forceCenter(500 / 2, 400 / 2));
+
+        const link = svgNetwork
+          .selectAll(".link")
+          .data(links)
+          .enter()
+          .append("line")
+          .attr("class", "link");
+
+        const node = svgNetwork
+          .selectAll(".node")
+          .data(nodes)
+          .enter()
+          .append("circle")
+          .attr("class", "node")
+          .attr("r", 5)
+          .attr("fill", (d) => d.group);
+
+        simulation.on("tick", () => {
+          link
+            .attr("x1", (d) => d.source.x)
+            .attr("y1", (d) => d.source.y)
+            .attr("x2", (d) => d.target.x)
+            .attr("y2", (d) => d.target.y);
+
+          node.attr("cx", (d) => d.x).attr("cy", (d) => d.y);
+        });
+      }
+
+      function drawTimeline() {
+        // Timeline implementation (simplified)
+        const years = [
+          ...new Set(documents.map((d) => d.publicationYear)),
+        ].sort();
+        const yearCounts = years.map((year) => ({
+          year: year,
+          count: documents.filter((d) => d.publicationYear === year).length,
+        }));
+
+        const x = d3.scaleBand().range([0, 500]).domain(years).padding(0.1);
+        const y = d3
+          .scaleLinear()
+          .range([400, 0])
+          .domain([0, d3.max(yearCounts, (d) => d.count)]);
+
+        svgTimeline.selectAll("*").remove();
+        svgTimeline
+          .append("g")
+          .attr("transform", "translate(40,0)")
+          .call(d3.axisLeft(y));
+
+        svgTimeline
+          .append("g")
+          .attr("transform", "translate(40,400)")
+          .call(d3.axisBottom(x));
+
+        svgTimeline
+          .selectAll(".bar")
+          .data(yearCounts)
+          .enter()
+          .append("rect")
+          .attr("class", "bar")
+          .attr("x", (d) => x(d.year) + 40)
+          .attr("width", x.bandwidth())
+          .attr("y", (d) => y(d.count))
+          .attr("height", (d) => 400 - y(d.count));
+      }
+
+      function drawKeywordCloud() {
+        // Keyword cloud implementation (very basic)
+        const tags = documents.flatMap((d) => d.tags);
+        const tagCount = {};
+        tags.forEach((tag) => {
+          tagCount[tag] = (tagCount[tag] || 0) + 1;
+        });
+
+        const cloudData = Object.entries(tagCount).map(([text, size]) => ({
+          text,
+          size: size * 10,
+        }));
+
+        d3.layout
+          .cloud()
+          .size([500, 400])
+          .words(cloudData)
+          .padding(5)
+          .rotate(() => ~~(Math.random() * 2) * 90)
+          .font("Impact")
+          .fontSize((d) => d.size)
+          .on("end", drawCloud)
+          .start();
+
+        function drawCloud(words) {
+          svgCloud.selectAll("*").remove();
+          svgCloud
+            .append("g")
+            .attr("transform", "translate(250,200)")
+            .selectAll("text")
+            .data(words)
+            .enter()
+            .append("text")
+            .style("font-size", (d) => d.size + "px")
+            .style("fill", "#69b3a2")
+            .attr("text-anchor", "middle")
+            .attr(
+              "transform",
+              (d) => `translate(${[d.x, d.y]})rotate(${d.rotate})`
+            )
+            .text((d) => d.text);
+        }
+      }
+
+      function applyFilters() {
+        // Implement filtering logic here
+        drawNetworkGraph();
+        drawTimeline();
+        drawKeywordCloud();
+      }
+
+      initVisualizations();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Research Articles Visualization</title>
+    <link
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        padding-top: 20px;
+      }
+      .container {
+        max-width: 1200px;
+      }
+      .graph-container,
+      .timeline-container,
+      .keyword-cloud-container {
+        margin-bottom: 40px;
+      }
+      #keyword-cloud {
+        width: 100%;
+        height: 400px;
+        overflow: hidden;
+      }
+      #network-graph {
+        width: 100%;
+        height: 500px;
+      }
+      #timeline {
+        width: 100%;
+        height: 400px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1 class="text-center">Research Articles Visualization</h1>
+      <div class="form-group">
+        <label for="filter-category">Filter by Category</label>
+        <select id="filter-category" class="form-control">
+          <option value="all">All</option>
+          <option value="Computer Science">Computer Science</option>
+          <option value="Biology">Biology</option>
+          <option value="Environmental Science">Environmental Science</option>
+          <option value="Healthcare">Healthcare</option>
+          <option value="Economics">Economics</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="filter-author">Filter by Author</label>
+        <select id="filter-author" class="form-control">
+          <option value="all">All</option>
+          <!-- Options will be populated dynamically -->
+        </select>
+      </div>
+      <div class="row">
+        <div class="col-md-12">
+          <div class="graph-container">
+            <h3>Interactive Network Graph</h3>
+            <div id="network-graph"></div>
+          </div>
+        </div>
+        <div class="col-md-12">
+          <div class="timeline-container">
+            <h3>Timeline View</h3>
+            <canvas id="timeline"></canvas>
+          </div>
+        </div>
+        <div class="col-md-12">
+          <div class="keyword-cloud-container">
+            <h3>Keyword Cloud</h3>
+            <div id="keyword-cloud"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/6.7.0/d3.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vis-network@9.1.0/dist/vis-network.min.js"></script>
+    <script>
+      const data = {
+        documents: [
+          {
+            id: "doc1",
+            title: "Exploring Quantum Computing",
+            authors: ["Emily Johnson", "Michael Lee"],
+            category: "Computer Science",
+            publicationYear: 2023,
+            metrics: {
+              views: 1500,
+              downloads: 320,
+              citations: 50,
+            },
+            tags: ["Quantum Computing", "Computational Theory", "Physics"],
+          },
+          {
+            id: "doc2",
+            title: "Advances in Genomics",
+            authors: ["Sophia Patel"],
+            category: "Biology",
+            publicationYear: 2022,
+            metrics: {
+              views: 2000,
+              downloads: 500,
+              citations: 80,
+            },
+            tags: ["Genomics", "Genetics", "Bioinformatics"],
+          },
+          {
+            id: "doc3",
+            title: "The Future of Renewable Energy",
+            authors: ["Liam Rodriguez", "Olivia Hernandez"],
+            category: "Environmental Science",
+            publicationYear: 2021,
+            metrics: {
+              views: 1800,
+              downloads: 400,
+              citations: 60,
+            },
+            tags: ["Renewable Energy", "Sustainability", "Climate Change"],
+          },
+          {
+            id: "doc4",
+            title: "Machine Learning in Healthcare",
+            authors: ["Ethan Brown"],
+            category: "Healthcare",
+            publicationYear: 2023,
+            metrics: {
+              views: 2200,
+              downloads: 600,
+              citations: 70,
+            },
+            tags: ["Machine Learning", "Healthcare", "AI"],
+          },
+          {
+            id: "doc5",
+            title: "Understanding Economic Indicators",
+            authors: ["Ava Wilson", "James Anderson"],
+            category: "Economics",
+            publicationYear: 2020,
+            metrics: {
+              views: 1600,
+              downloads: 350,
+              citations: 40,
+            },
+            tags: ["Economics", "Market Analysis", "Indicators"],
+          },
+        ],
+      };
+
+      // Timeline View with Chart.js
+      const timelineCtx = document.getElementById("timeline").getContext("2d");
+      const timelineData = {
+        labels: data.documents.map((doc) => doc.publicationYear),
+        datasets: [
+          {
+            label: "Number of Articles",
+            data: data.documents.map((doc) => doc.metrics.views), // Example metric
+            backgroundColor: "rgba(75, 192, 192, 0.2)",
+            borderColor: "rgba(75, 192, 192, 1)",
+            borderWidth: 1,
+          },
+        ],
+      };
+      new Chart(timelineCtx, {
+        type: "bar",
+        data: timelineData,
+        options: {
+          responsive: true,
+          scales: {
+            x: { beginAtZero: true },
+            y: { beginAtZero: true },
+          },
+        },
+      });
+
+      // Populate author filter dropdown
+      const authors = Array.from(
+        new Set(data.documents.flatMap((doc) => doc.authors))
+      );
+      const authorSelect = document.getElementById("filter-author");
+      authors.forEach((author) => {
+        const option = document.createElement("option");
+        option.value = author;
+        option.textContent = author;
+        authorSelect.appendChild(option);
+      });
+
+      // Network Graph with vis-network
+      function updateNetworkGraph(nodes, links) {
+        // Clear previous graph
+        const container = document.getElementById("network-graph");
+        container.innerHTML = "";
+
+        const dataNetwork = {
+          nodes: nodes,
+          edges: links,
+        };
+
+        const options = {
+          nodes: {
+            shape: "circle",
+            size: 10,
+          },
+          edges: {
+            width: 0.5,
+            color: "#000000",
+            smooth: {
+              enabled: true,
+              type: "continuous",
+            },
+          },
+          physics: {
+            stabilization: false,
+          },
+        };
+
+        new vis.Network(container, dataNetwork, options);
+      }
+
+      function initializeKeywordCloud(filteredArticles = data.documents) {
+        const keywords = filteredArticles.flatMap((article) => article.tags);
+        const keywordCount = keywords.reduce((acc, keyword) => {
+          acc[keyword] = (acc[keyword] || 0) + 1;
+          return acc;
+        }, {});
+
+        const cloudContainer = document.getElementById("keyword-cloud");
+        cloudContainer.innerHTML = Object.entries(keywordCount)
+          .map(
+            ([keyword, count]) =>
+              `<span style="font-size: ${
+                count * 10
+              }px; margin: 5px;">${keyword}</span>`
+          )
+          .join("");
+      }
+
+      function updateVisualizations() {
+        const selectedCategory =
+          document.getElementById("filter-category").value;
+        const selectedAuthor = document.getElementById("filter-author").value;
+
+        const filteredArticles = data.documents.filter(
+          (doc) =>
+            (selectedCategory === "all" || doc.category === selectedCategory) &&
+            (selectedAuthor === "all" || doc.authors.includes(selectedAuthor))
+        );
+
+        const filteredNodes = filteredArticles.flatMap((doc) => [
+          { id: doc.id, label: doc.title, group: doc.category },
+          ...doc.authors.map((author) => ({
+            id: author,
+            label: author,
+            group: "Author",
+          })),
+        ]);
+
+        const filteredLinks = filteredArticles.flatMap((doc) =>
+          doc.authors.map((author) => ({
+            from: doc.id,
+            to: author,
+          }))
+        );
+
+        // Update visualizations with filtered data
+        updateNetworkGraph(filteredNodes, filteredLinks);
+        initializeKeywordCloud(filteredArticles);
+      }
+
+      document
+        .getElementById("filter-category")
+        .addEventListener("change", updateVisualizations);
+
+      document
+        .getElementById("filter-author")
+        .addEventListener("change", updateVisualizations);
+
+      // Initialize with all data
+      updateVisualizations();
+    </script>
+  </body>
+</html>

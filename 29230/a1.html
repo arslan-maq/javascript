@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Research Article Analyzer</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/leaflet.css"
+    />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+      }
+      #graph,
+      #timeline,
+      #keyword-cloud {
+        width: 100%;
+        height: 400px;
+        margin: 20px 0;
+      }
+      .filter-section {
+        padding: 10px;
+        background: #f4f4f4;
+        margin: 10px 0;
+      }
+      .responsive-div {
+        width: 100%;
+        max-width: 1200px;
+        margin: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="responsive-div">
+      <h1>Research Article Visualization</h1>
+
+      <!-- Filtering Options -->
+      <div class="filter-section">
+        <label for="yearFilter">Year:</label>
+        <input
+          type="range"
+          id="yearFilter"
+          min="2020"
+          max="2023"
+          value="2023"
+        />
+        <span id="yearDisplay">2023</span>
+        <select id="categoryFilter">
+          <option value="">All Categories</option>
+          <!-- Options will be dynamically added -->
+        </select>
+      </div>
+
+      <!-- Network Graph -->
+      <div id="graph"></div>
+
+      <!-- Timeline -->
+      <div id="timeline"></div>
+
+      <!-- Keyword Cloud -->
+      <div id="keyword-cloud"></div>
+    </div>
+
+    <script src="https://d3js.org/d3.v6.min.js"></script>
+    <script>
+      const data = {
+        documents: [
+          {
+            id: "doc1",
+            title: "Exploring Quantum Computing",
+            authors: ["Emily Johnson", "Michael Lee"],
+            category: "Computer Science",
+            publicationYear: 2023,
+            metrics: {
+              views: 1500,
+              downloads: 320,
+              citations: 50,
+            },
+            tags: ["Quantum Computing", "Computational Theory", "Physics"],
+          },
+          {
+            id: "doc2",
+            title: "Advances in Genomics",
+            authors: ["Sophia Patel"],
+            category: "Biology",
+            publicationYear: 2022,
+            metrics: {
+              views: 2000,
+              downloads: 500,
+              citations: 80,
+            },
+            tags: ["Genomics", "Genetics", "Bioinformatics"],
+          },
+          {
+            id: "doc3",
+            title: "The Future of Renewable Energy",
+            authors: ["Liam Rodriguez", "Olivia Hernandez"],
+            category: "Environmental Science",
+            publicationYear: 2021,
+            metrics: {
+              views: 1800,
+              downloads: 400,
+              citations: 60,
+            },
+            tags: ["Renewable Energy", "Sustainability", "Climate Change"],
+          },
+          {
+            id: "doc4",
+            title: "Machine Learning in Healthcare",
+            authors: ["Ethan Brown"],
+            category: "Healthcare",
+            publicationYear: 2023,
+            metrics: {
+              views: 2200,
+              downloads: 600,
+              citations: 70,
+            },
+            tags: ["Machine Learning", "Healthcare", "AI"],
+          },
+          {
+            id: "doc5",
+            title: "Understanding Economic Indicators",
+            authors: ["Ava Wilson", "James Anderson"],
+            category: "Economics",
+            publicationYear: 2020,
+            metrics: {
+              views: 1600,
+              downloads: 350,
+              citations: 40,
+            },
+            tags: ["Economics", "Market Analysis", "Indicators"],
+          },
+        ],
+      };
+      // Populate category filter
+      const categories = [
+        ...new Set(data.documents.map((doc) => doc.category)),
+      ];
+      d3.select("#categoryFilter")
+        .selectAll("option")
+        .data(categories)
+        .enter()
+        .append("option")
+        .text((d) => d);
+
+      // Function to update all visualizations
+      function updateVisualizations() {
+        const year = d3.select("#yearFilter").property("value");
+        const category = d3.select("#categoryFilter").property("value");
+
+        const filteredData = data.documents.filter(
+          (doc) =>
+            doc.publicationYear <= year &&
+            (!category || doc.category === category)
+        );
+
+        // Network Graph (simplified version, real implementation would be more complex)
+        d3.select("#graph").html(
+          "Network graph would be here with nodes for articles, edges for relations."
+        );
+
+        // Timeline
+        let timelineData = d3.rollup(
+          filteredData,
+          (v) => v.length,
+          (d) => d.publicationYear
+        );
+        let timeline = Array.from(timelineData, ([year, count]) => ({
+          year,
+          count,
+        }));
+        d3.select("#timeline").html(`Timeline: ${JSON.stringify(timeline)}`);
+
+        // Keyword Cloud (basic implementation)
+        let tags = filteredData.flatMap((doc) => doc.tags);
+        let tagCount = d3.rollup(
+          tags,
+          (v) => v.length,
+          (d) => d
+        );
+        let cloud = Array.from(
+          tagCount,
+          ([tag, count]) =>
+            `<span style="font-size: ${10 + count * 5}px">${tag}</span> `
+        );
+        d3.select("#keyword-cloud").html(cloud.join(" "));
+      }
+
+      // Event listeners for filters
+      d3.select("#yearFilter").on("input", function () {
+        d3.select("#yearDisplay").text(this.value);
+        updateVisualizations();
+      });
+
+      d3.select("#categoryFilter").on("change", updateVisualizations);
+
+      // Initial visualization
+      updateVisualizations();
+    </script>
+  </body>
+</html>
