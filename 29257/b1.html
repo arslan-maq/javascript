@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sales Dashboard</title>
+    <link
+      href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      .progress {
+        height: 5px;
+      }
+      .product-info,
+      .sales-value {
+        font-size: 10px;
+      }
+      .card {
+        height: 100%;
+      }
+      .chart-container {
+        width: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container-fluid mt-4">
+      <div class="row" id="row1"></div>
+      <div class="row mt-4" id="row2"></div>
+    </div>
+
+    <script
+      type="text/javascript"
+      src="https://www.gstatic.com/charts/loader.js"
+    ></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        google.charts.load("current", { packages: ["corechart"] });
+        google.charts.setOnLoadCallback(drawCharts);
+
+        function generateRandomData() {
+          const products = ["Widget A", "Gadget B", "Tool C", "Device D"];
+          let salesData = {};
+          let productSales = {};
+          let productUnits = {};
+          let totalSales = 0;
+          let totalUnits = 0;
+          const currentMonth = new Date().getMonth();
+          const months = [
+            "Jan",
+            "Feb",
+            "Mar",
+            "Apr",
+            "May",
+            "Jun",
+            "Jul",
+            "Aug",
+            "Sep",
+            "Oct",
+            "Nov",
+            "Dec",
+          ].slice(0, currentMonth + 1);
+
+          for (let product of products) {
+            productSales[product] = Math.floor(Math.random() * 10000) + 1000;
+            productUnits[product] = Math.floor(Math.random() * 500) + 50;
+            totalSales += productSales[product];
+            totalUnits += productUnits[product];
+          }
+
+          salesData.totalSales = totalSales;
+          salesData.productSales = productSales;
+          salesData.productUnits = productUnits;
+          salesData.totalUnits = totalUnits;
+          salesData.salesByMonth = months.map((_, i) =>
+            Math.floor(Math.random() * (i + 1) * 1000)
+          );
+          salesData.salesByProductByMonth = products.map((product) =>
+            months.map(() => Math.floor(Math.random() * 1000))
+          );
+
+          return salesData;
+        }
+
+        function drawCharts() {
+          const data = generateRandomData();
+          const row1 = document.getElementById("row1");
+          const row2 = document.getElementById("row2");
+
+          // Row 1 Cards
+          row1.innerHTML = `
+            <div class="col-md-3 mb-3"><div class="card"><div class="card-body"><h6 class="card-title">Total Sales</h6><p class="mb-1">${data.totalSales.toLocaleString()}</p><div class="progress"><div class="progress-bar" role="progressbar" style="width: ${
+            Math.random() * 100
+          }%" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100"></div></div></div></div></div>
+            ${Object.entries(data.productSales)
+              .map(
+                ([product, sales]) => `
+            <div class="col-md-3 mb-3"><div class="card"><div class="card-body">
+                <div class="d-flex justify-content-between product-info"><span>${product}</span><span class="sales-value">${sales.toLocaleString()}</span></div>
+                <div class="progress mt-1 mb-2"><div class="progress-bar" role="progressbar" style="width: ${
+                  Math.random() * 100
+                }%" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100"></div></div>
+            </div></div></div>`
+              )
+              .join("")}
+            <div class="col-md-3 mb-3"><div class="card"><div class="card-body"><h6 class="card-title">Products Sold</h6><p>${
+              data.totalUnits
+            }</p></div></div></div>
+            ${Object.entries(data.productUnits)
+              .map(
+                ([product, units]) => `
+            <div class="col-md-3 mb-3"><div class="card"><div class="card-body">
+                <div class="d-flex justify-content-between product-info"><span>${product}</span><span class="sales-value">${units}</span></div>
+                <div class="progress mt-1 mb-2"><div class="progress-bar" role="progressbar" style="width: ${
+                  Math.random() * 100
+                }%" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100"></div></div>
+            </div></div></div>`
+              )
+              .join("")}`;
+
+          // Row 2 Charts
+          const currentMonth = new Date().getMonth();
+          const months = [
+            "Jan",
+            "Feb",
+            "Mar",
+            "Apr",
+            "May",
+            "Jun",
+            "Jul",
+            "Aug",
+            "Sep",
+            "Oct",
+            "Nov",
+            "Dec",
+          ].slice(0, currentMonth + 1);
+
+          // Total Sales by Month Chart
+          let dataArray = [["Month", "Sales"]].concat(
+            months.map((month, index) => [month, data.salesByMonth[index]])
+          );
+          let totalSalesData = google.visualization.arrayToDataTable(dataArray);
+          let totalSalesOptions = {
+            title: "Total Sales by Month",
+            legend: { position: "bottom" },
+          };
+          let totalSalesChart = new google.visualization.LineChart(
+            document.createElement("div")
+          );
+          totalSalesChart.draw(totalSalesData, totalSalesOptions);
+          row2.innerHTML += `<div class="col-md-6"><div class="chart-container">${
+            totalSalesChart.getContainer().outerHTML
+          }</div></div>`;
+
+          // Sales by Product by Month
+          dataArray = [["Month", ...Object.keys(data.productSales)]].concat(
+            months.map((month, index) => [
+              month,
+              ...data.salesByProductByMonth.map(
+                (productData) => productData[index]
+              ),
+            ])
+          );
+          let productSalesData =
+            google.visualization.arrayToDataTable(dataArray);
+          let productSalesOptions = {
+            title: "Product Sales by Month",
+            legend: { position: "bottom" },
+          };
+          let productSalesChart = new google.visualization.LineChart(
+            document.createElement("div")
+          );
+          productSalesChart.draw(productSalesData, productSalesOptions);
+          row2.innerHTML += `<div class="col-md-6"><div class="chart-container">${
+            productSalesChart.getContainer().outerHTML
+          }</div></div>`;
+        }
+      });
+    </script>
+  </body>
+</html>

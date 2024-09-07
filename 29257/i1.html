@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sales Dashboard</title>
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+    />
+
+    <script
+      type="text/javascript"
+      src="https://www.gstatic.com/charts/loader.js"
+    ></script>
+
+    <style>
+      .card {
+        padding: 10px;
+        border-radius: 10px;
+      }
+
+      .card-title {
+        font-size: 14px;
+      }
+
+      .card-text {
+        font-size: 10px;
+      }
+
+      .progress {
+        height: 5px;
+      }
+
+      .progress-bar {
+        height: 5px;
+      }
+
+      h5.card-title {
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container mt-4">
+      <!-- Filters -->
+      <div class="row mb-4">
+        <div class="col-md-4">
+          <label for="year-filter">Select Year</label>
+          <select id="year-filter" class="form-control">
+            <option value="2023">2023</option>
+            <option value="2024" selected>2024</option>
+            <option value="2025">2025</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label for="product-filter">Select Product</label>
+          <select id="product-filter" class="form-control" multiple>
+            <option value="Product A" selected>Product A</option>
+            <option value="Product B" selected>Product B</option>
+            <option value="Product C" selected>Product C</option>
+            <option value="Product D" selected>Product D</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label for="target-filter">Sales Target</label>
+          <input
+            id="target-filter"
+            type="number"
+            class="form-control"
+            value="25000"
+            min="10000"
+            step="5000"
+          />
+        </div>
+      </div>
+
+      <div class="row">
+        <!-- Row 1 -->
+        <div class="col-md-3 mb-4">
+          <div class="card h-100">
+            <div class="card-body">
+              <h5 class="card-title">Total Sales (Year)</h5>
+              <p id="total-sales" class="card-text">$0</p>
+              <div class="progress">
+                <div
+                  id="sales-progress-bar"
+                  class="progress-bar"
+                  role="progressbar"
+                  style="width: 0%"
+                  aria-valuenow="0"
+                  aria-valuemin="0"
+                  aria-valuemax="100"
+                ></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3 mb-4">
+          <div class="card h-100">
+            <div class="card-body">
+              <h5 class="card-title">Sales by Product</h5>
+              <div id="product-sales"></div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3 mb-4">
+          <div class="card h-100">
+            <div class="card-body">
+              <h5 class="card-title">Total Products Sold</h5>
+              <p id="total-products-sold" class="card-text">0</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3 mb-4">
+          <div class="card h-100">
+            <div class="card-body">
+              <h5 class="card-title">Products Sold by Product</h5>
+              <div id="product-units-sold"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <!-- Row 2 -->
+        <div class="col-md-6 mb-4">
+          <div class="card">
+            <div class="card-body">
+              <h5 class="card-title">Sales by Month</h5>
+              <div id="sales-by-month" style="width: 100%; height: 400px"></div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6 mb-4">
+          <div class="card">
+            <div class="card-body">
+              <h5 class="card-title">Sales by Product by Month</h5>
+              <div
+                id="sales-by-product-month"
+                style="width: 100%; height: 400px"
+              ></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      // Load the Google Charts library
+      google.charts.load("current", { packages: ["corechart"] });
+      google.charts.setOnLoadCallback(drawCharts);
+
+      // Generate random values for demonstration
+      function getRandomInt(min, max) {
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+      }
+
+      // Populate sales values based on filters
+      function populateValues() {
+        const year = document.getElementById("year-filter").value;
+        const salesTarget = parseInt(
+          document.getElementById("target-filter").value
+        );
+        const selectedProducts = Array.from(
+          document.getElementById("product-filter").selectedOptions
+        ).map((option) => option.value);
+
+        const totalSales = getRandomInt(50000, 100000);
+        const totalProductsSold = getRandomInt(2000, 5000);
+
+        document.getElementById(
+          "total-sales"
+        ).textContent = `$${totalSales.toLocaleString()}`;
+        document.getElementById("total-products-sold").textContent =
+          totalProductsSold;
+
+        const salesProgress = (totalSales / salesTarget) * 100;
+        document.getElementById(
+          "sales-progress-bar"
+        ).style.width = `${salesProgress}%`;
+        document
+          .getElementById("sales-progress-bar")
+          .setAttribute("aria-valuenow", salesProgress);
+
+        // Generate sales by product
+        let productSalesHTML = "";
+        let productUnitsSoldHTML = "";
+        selectedProducts.forEach((product) => {
+          const productSales = getRandomInt(10000, 25000);
+          const productSalesProgress = (productSales / salesTarget) * 100;
+          const productUnitsSold = getRandomInt(200, 500);
+          const productUnitsProgress =
+            (productUnitsSold / (totalProductsSold / selectedProducts.length)) *
+            100;
+
+          productSalesHTML += `
+            <div class="mb-2">
+                <div style="font-size: 10px; margin-bottom: 5px;">
+                    ${product}: $${productSales.toLocaleString()}
+                </div>
+                <div class="progress mb-2">
+                    <div class="progress-bar" role="progressbar" style="width: ${productSalesProgress}%; height: 5px;" aria-valuenow="${productSalesProgress}" aria-valuemin="0" aria-valuemax="100"></div>
+                </div>
+        `;
+
+          productUnitsSoldHTML += `
+            <div class="mb-2">
+                <div style="font-size: 10px; margin-bottom: 5px;">
+                    ${product}: ${productUnitsSold} units
+                </div>
+                <div class="progress mb-2">
+                    <div class="progress-bar" role="progressbar" style="width: ${productUnitsProgress}%; height: 5px;" aria-valuenow="${productUnitsProgress}" aria-valuemin="0" aria-valuemax="100"></div>
+                </div>
+            </div>
+        `;
+        });
+
+        document.getElementById("product-sales").innerHTML = productSalesHTML;
+        document.getElementById("product-units-sold").innerHTML =
+          productUnitsSoldHTML;
+      }
+
+      // Draw charts
+      function drawCharts() {
+        populateValues();
+
+        // Sales by Month chart
+        const salesByMonthData = new google.visualization.DataTable();
+        salesByMonthData.addColumn("string", "Month");
+        salesByMonthData.addColumn("number", "Sales");
+
+        const months = [
+          "Jan",
+          "Feb",
+          "Mar",
+          "Apr",
+          "May",
+          "Jun",
+          "Jul",
+          "Aug",
+          "Sep",
+          "Oct",
+          "Nov",
+          "Dec",
+        ];
+        const salesData = months.map((month) => [
+          month,
+          getRandomInt(2000, 5000),
+        ]);
+
+        salesByMonthData.addRows(salesData);
+
+        const salesByMonthChart = new google.visualization.LineChart(
+          document.getElementById("sales-by-month")
+        );
+        salesByMonthChart.draw(salesByMonthData, {
+          title: "Sales by Month",
+          legend: { position: "bottom" },
+          hAxis: { title: "Month" },
+          vAxis: { title: "Sales" },
+        });
+
+        // Sales by Product by Month chart
+        const salesByProductMonthData = new google.visualization.DataTable();
+        salesByProductMonthData.addColumn("string", "Month");
+        salesByProductMonthData.addColumn("number", "Product A");
+        salesByProductMonthData.addColumn("number", "Product B");
+        salesByProductMonthData.addColumn("number", "Product C");
+        salesByProductMonthData.addColumn("number", "Product D");
+
+        const productSalesData = months.map((month) => [
+          month,
+          getRandomInt(500, 1500),
+          getRandomInt(500, 1500),
+          getRandomInt(500, 1500),
+          getRandomInt(500, 1500),
+        ]);
+
+        salesByProductMonthData.addRows(productSalesData);
+
+        const salesByProductMonthChart = new google.visualization.LineChart(
+          document.getElementById("sales-by-product-month")
+        );
+        salesByProductMonthChart.draw(salesByProductMonthData, {
+          title: "Sales by Product by Month",
+          legend: { position: "bottom" },
+          hAxis: { title: "Month" },
+          vAxis: { title: "Sales" },
+        });
+      }
+
+      // Event listeners for filters
+      document
+        .getElementById("year-filter")
+        .addEventListener("change", drawCharts);
+      document
+        .getElementById("product-filter")
+        .addEventListener("change", drawCharts);
+      document
+        .getElementById("target-filter")
+        .addEventListener("input", drawCharts);
+    </script>
+  </body>
+</html>

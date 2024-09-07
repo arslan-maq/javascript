@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sales Dashboard</title>
+    <link
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      .card {
+        height: 100%;
+      }
+
+      .progress {
+        height: 5px;
+      }
+
+      .product-info {
+        font-size: 10px;
+      }
+
+      .chart-container {
+        width: 100%;
+        height: 300px; /* Adjust as needed */
+      }
+
+      h5.card-title {
+        font-size: 1rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container-fluid mt-4">
+      <!-- Row 1 -->
+      <div class="row" id="row1">
+        <!-- Cards will be dynamically inserted here -->
+      </div>
+      <!-- Row 2 -->
+      <div class="row mt-4">
+        <div class="col-lg-6" id="salesOverTime"></div>
+        <div class="col-lg-6" id="productSalesOverTime"></div>
+      </div>
+    </div>
+
+    <script
+      type="text/javascript"
+      src="https://www.gstatic.com/charts/loader.js"
+    ></script>
+    <script>
+      google.charts.load("current", { packages: ["corechart", "bar"] });
+      google.charts.setOnLoadCallback(drawCharts);
+
+      function drawCharts() {
+        const products = ["ProductA", "ProductB", "ProductC", "ProductD"];
+        const currentYear = new Date().getFullYear();
+        let salesData = generateRandomSalesData(currentYear);
+
+        // Row 1 - Cards
+        const row1 = document.getElementById("row1");
+
+        // Card 1: Total Sales
+        row1.innerHTML += `
+    <div class="col-md-3 mb-3">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Total Sales ${currentYear}</h5>
+                <p class="card-text">$${salesData.totalSales.toLocaleString()}</p>
+                <div class="progress">
+                    <div class="progress-bar" role="progressbar" style="width: ${
+                      salesData.salesTargetPercentage
+                    }%;" aria-valuenow="${
+          salesData.salesTargetPercentage
+        }" aria-valuemin="0" aria-valuemax="100"></div>
+                </div>
+            </div>
+        </div>
+    </div>`;
+
+        // Card 2 & 4: Product Sales & Units Sold
+        products.forEach((product, index) => {
+          if (index < 2) {
+            // For Card 2
+            row1.innerHTML += `
+            <div class="col-md-3 mb-3">
+                <div class="card">
+                    <div class="card-body product-info">
+                        <h5 class="card-title">${product}</h5>
+                        <p>$${salesData.productSales[
+                          product
+                        ].toLocaleString()} <span style="float:right;">${
+              salesData.productUnits[product]
+            } units</span></p>
+                        <div class="progress">
+                            <div class="progress-bar" role="progressbar" style="width: ${
+                              salesData.productPercentage[product]
+                            }%;" aria-valuenow="${
+              salesData.productPercentage[product]
+            }" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+          }
+        });
+
+        // Row 2 - Charts
+        drawLineChart(
+          "salesOverTime",
+          "Total Sales Over Time",
+          salesData.monthlySales
+        );
+        drawProductLineChart(
+          "productSalesOverTime",
+          "Product Sales Over Time",
+          salesData.productMonthlySales
+        );
+      }
+
+      function drawLineChart(elementId, title, data) {
+        var dataTable = new google.visualization.DataTable();
+        dataTable.addColumn("string", "Month");
+        dataTable.addColumn("number", "Sales");
+        dataTable.addRows(
+          data.map((sales, index) => [
+            new Date(2000, index).toLocaleString("default", { month: "short" }),
+            sales,
+          ])
+        );
+
+        var options = {
+          title: title,
+          legend: { position: "bottom" },
+          width: "100%",
+          height: 300,
+        };
+
+        var chart = new google.visualization.LineChart(
+          document.getElementById(elementId)
+        );
+        chart.draw(dataTable, options);
+      }
+
+      function drawProductLineChart(elementId, title, data) {
+        var dataTable = new google.visualization.DataTable();
+        dataTable.addColumn("string", "Month");
+        for (var product in data) {
+          dataTable.addColumn("number", product);
+        }
+        // Transform data for Google Charts
+        var chartData = dataTable.addRows(
+          data["Jan"].map((_, i) => {
+            let row = [
+              new Date(2000, 0).toLocaleString("default", { month: "short" }),
+            ];
+            for (var prod in data) {
+              row.push(data[prod][i]);
+            }
+            return row;
+          })
+        );
+
+        var options = {
+          title: title,
+          legend: { position: "bottom" },
+          width: "100%",
+          height: 300,
+        };
+
+        var chart = new google.visualization.LineChart(
+          document.getElementById(elementId)
+        );
+        chart.draw(dataTable, options);
+      }
+
+      function generateRandomSalesData(year) {
+        // Placeholder for generating random data
+        // This function should be expanded to generate realistic sales data
+        let totalSales = Math.floor(Math.random() * 1000000) + 500000;
+        let monthlySales = Array.from({ length: 12 }, () =>
+          Math.floor(Math.random() * (totalSales / 12))
+        );
+        let productSales = {
+          ProductA: 0,
+          ProductB: 0,
+          ProductC: 0,
+          ProductD: 0,
+        };
+        let productUnits = {};
+        let productMonthlySales = {};
+
+        for (let prod in productSales) {
+          productSales[prod] = Math.floor(Math.random() * totalSales * 0.25);
+          productUnits[prod] = Math.floor(productSales[prod] / 100); // Assuming average price per unit is $100 for simplicity
+          productMonthlySales[prod] = monthlySales.map(() =>
+            Math.floor(Math.random() * (productSales[prod] / 12))
+          );
+        }
+
+        return {
+          totalSales: totalSales,
+          salesTargetPercentage: Math.min((totalSales / 1000000) * 100, 100), // Assuming target is $1M for this example
+          monthlySales: monthlySales,
+          productSales: productSales,
+          productUnits: productUnits,
+          productPercentage: Object.fromEntries(
+            Object.keys(productSales).map((k) => [
+              k,
+              (productSales[k] / (totalSales * 0.25)) * 100,
+            ])
+          ),
+          productMonthlySales: productMonthlySales,
+        };
+      }
+    </script>
+  </body>
+</html>
