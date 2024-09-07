@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Baseball Frenzy</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.css"
+    />
+  </head>
+  <body class="bg-gray-100 text-gray-900">
+    <!-- Navigation Bar -->
+    <nav class="bg-blue-600 p-4">
+      <h1 class="text-white text-center text-3xl font-bold">Baseball Frenzy</h1>
+    </nav>
+
+    <!-- Container -->
+    <div class="container mx-auto p-6 space-y-10">
+      <!-- Section 1: Top Players -->
+      <section id="top-players" class="bg-white shadow rounded-lg p-6">
+        <h2 class="text-2xl font-semibold mb-4 text-gray-800">Top 5 Players</h2>
+        <table class="table-auto w-full text-left">
+          <thead>
+            <tr class="bg-gray-200">
+              <th class="px-4 py-2">Rank</th>
+              <th class="px-4 py-2">Player</th>
+              <th class="px-4 py-2">Years Age</th>
+              <th class="px-4 py-2">Earned Run Average</th>
+              <th class="px-4 py-2">Throws</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200"></tbody>
+        </table>
+      </section>
+
+      <!-- Section 2: Line Chart -->
+      <section class="bg-white shadow rounded-lg p-6">
+        <h2 class="text-2xl font-semibold mb-4 text-gray-800">
+          Earned Run Average of Top 10 Players
+        </h2>
+        <div class="chart-container">
+          <canvas id="line-chart"></canvas>
+        </div>
+      </section>
+
+      <!-- Section 3: Search Section -->
+      <section class="bg-white shadow rounded-lg p-6">
+        <h2 class="text-2xl font-semibold mb-4 text-gray-800">Search Player</h2>
+        <div class="flex space-x-4 mb-4">
+          <input
+            id="player-search"
+            class="w-full px-4 py-2 border border-gray-300 rounded-lg"
+            type="text"
+            placeholder="Search player by name"
+          />
+          <button
+            id="search-button"
+            class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-500"
+          >
+            Search
+          </button>
+        </div>
+        <div id="player-details" class="mt-4 text-gray-700"></div>
+      </section>
+
+      <!-- Section 4: Pie Chart -->
+      <section class="bg-white shadow rounded-lg p-6">
+        <h2 class="text-2xl font-semibold mb-4 text-gray-800">
+          Throws Distribution
+        </h2>
+        <div class="chart-container" style="height: 60vh">
+          <canvas id="pie-chart"></canvas>
+        </div>
+      </section>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-blue-600 text-white text-center p-4 mt-10">
+      Proudly Built for All Baseball Fans Worldwide ⚾
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+      const apiUrl = "https://api.sampleapis.com/baseball/eraCareer";
+
+      // Fetch data from API
+      async function fetchData() {
+        const response = await fetch(apiUrl);
+        return await response.json();
+      }
+
+      // Render Top Players
+      async function renderTopPlayers() {
+        const data = await fetchData();
+        const topPlayers = data.slice(0, 5);
+        let tableRows = "";
+        topPlayers.forEach((player) => {
+          tableRows += `
+                    <tr>
+                        <td class="px-4 py-2">${player.Rank}</td>
+                        <td class="px-4 py-2">${player.Player}</td>
+                        <td class="px-4 py-2">${player.YearsAge}</td>
+                        <td class="px-4 py-2">${player.EarnedRunAverage}</td>
+                        <td class="px-4 py-2">${player.Throws}</td>
+                    </tr>
+                `;
+        });
+        document.querySelector("#top-players tbody").innerHTML = tableRows;
+      }
+
+      // Render Line Chart
+      async function renderLineChart() {
+        const data = await fetchData();
+        const top10ByERA = data
+          .sort((a, b) => b.EarnedRunAverage - a.EarnedRunAverage)
+          .slice(0, 10);
+        const labels = top10ByERA.map((player) => player.Player);
+        const eras = top10ByERA.map((player) =>
+          parseFloat(player.EarnedRunAverage)
+        );
+
+        new Chart(document.getElementById("line-chart").getContext("2d"), {
+          type: "line",
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                label: "Earned Run Average",
+                data: eras,
+                borderColor: "rgba(75, 192, 192, 1)",
+                borderWidth: 2,
+                fill: false,
+              },
+            ],
+          },
+          options: {
+            scales: {
+              y: {
+                beginAtZero: true,
+              },
+            },
+          },
+        });
+      }
+
+      // Render Pie Chart
+      async function renderPieChart() {
+        const data = await fetchData();
+        const throwCounts = data.reduce((acc, player) => {
+          acc[player.Throws] = (acc[player.Throws] || 0) + 1;
+          return acc;
+        }, {});
+
+        const labels = Object.keys(throwCounts);
+        const counts = Object.values(throwCounts);
+
+        new Chart(document.getElementById("pie-chart").getContext("2d"), {
+          type: "pie",
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                data: counts,
+                backgroundColor: ["#FF6384", "#36A2EB", "#FFCE56"],
+              },
+            ],
+          },
+        });
+      }
+
+      // Setup Autocomplete
+      async function setupAutocomplete() {
+        const data = await fetchData();
+        const playerNames = data.map((player) => player.Player);
+        $("#player-search").autocomplete({
+          source: playerNames,
+        });
+      }
+
+      // Search Player Details
+      async function searchPlayer() {
+        const searchName = $("#player-search").val();
+        const data = await fetchData();
+        const player = data.find((player) => player.Player === searchName);
+        if (player) {
+          document.getElementById("player-details").innerHTML = `
+                    <h3 class="text-xl font-semibold text-gray-800">${player.Player}</h3>
+                    <p class="mt-2">Rank: ${player.Rank}</p>
+                    <p>Years Age: ${player.YearsAge}</p>
+                    <p>Earned Run Average: ${player.EarnedRunAverage}</p>
+                    <p>Throws: ${player.Throws}</p>
+                `;
+        } else {
+          document.getElementById("player-details").innerHTML =
+            "<p>Player not found.</p>";
+        }
+      }
+
+      // Initialize the widget
+      async function init() {
+        await renderTopPlayers();
+        await renderLineChart();
+        await renderPieChart();
+        await setupAutocomplete();
+        document
+          .getElementById("search-button")
+          .addEventListener("click", searchPlayer);
+      }
+
+      init();
+    </script>
+  </body>
+</html>

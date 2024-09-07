@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Baseball ERA Career Stats</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        font-family: "Arial", sans-serif;
+      }
+      .navbar {
+        background-color: #003366;
+      }
+      .navbar-brand,
+      .navbar-nav .nav-link {
+        color: white;
+      }
+      .card {
+        margin: 20px 0;
+      }
+      .chart-container {
+        width: 100%;
+        height: 300px;
+      }
+      #searchInput {
+        width: 100%;
+        margin-bottom: 20px;
+      }
+      footer {
+        background-color: #f8f9fa;
+        text-align: center;
+        padding: 10px;
+        position: fixed;
+        width: 100%;
+        bottom: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg">
+      <div class="container-fluid">
+        <a class="navbar-brand" href="#">Baseball ERA Career</a>
+      </div>
+    </nav>
+
+    <div class="container mt-4">
+      <h2>Top Players by Rank</h2>
+      <div id="topPlayers" class="row"></div>
+
+      <h2>Earned Run Average Line Chart</h2>
+      <div class="chart-container">
+        <canvas id="lineChart"></canvas>
+      </div>
+
+      <input
+        type="text"
+        id="searchInput"
+        class="form-control"
+        placeholder="Search player by starting letter..."
+      />
+
+      <h2>Player Details</h2>
+      <div id="playerDetails" class="card"></div>
+
+      <h2>Throws Distribution</h2>
+      <div class="chart-container">
+        <canvas id="pieChart"></canvas>
+      </div>
+    </div>
+
+    <footer>Proudly Built for All Baseball Fans Worldwide ⚾</footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", async () => {
+        let players = await fetch(
+          "https://api.sampleapis.com/baseball/eraCareer"
+        ).then((response) => response.json());
+
+        // Top 5 Players
+        const top5 = players.sort((a, b) => a.Rank - b.Rank).slice(0, 5);
+        const topPlayersDiv = document.getElementById("topPlayers");
+        top5.forEach((player) => {
+          const card = `<div class="col-md-4"><div class="card"><div class="card-body">
+                <h5 class="card-title">#${player.Rank} ${player.Name}</h5>
+                <p class="card-text">ERA: ${player.EarnedRunAverage}</p></div></div></div>`;
+          topPlayersDiv.innerHTML += card;
+        });
+
+        // Line Chart
+        const lineChartData = players
+          .sort((a, b) => b.EarnedRunAverage - a.EarnedRunAverage)
+          .slice(0, 10)
+          .map((p) => ({ x: p.Name, y: p.EarnedRunAverage }));
+        new Chart(document.getElementById("lineChart"), {
+          type: "line",
+          data: {
+            datasets: [
+              {
+                label: "ERA",
+                data: lineChartData,
+                borderColor: "rgb(75, 192, 192)",
+                tension: 0.1,
+              },
+            ],
+          },
+          options: {
+            scales: {
+              x: { type: "category", labels: lineChartData.map((d) => d.x) },
+            },
+          },
+        });
+
+        // Search functionality
+        const searchInput = document.getElementById("searchInput");
+        const playerDetails = document.getElementById("playerDetails");
+        searchInput.addEventListener("input", function () {
+          const letter = this.value.charAt(0).toUpperCase();
+          const filteredPlayers = players.filter((p) =>
+            p.Name.startsWith(letter)
+          );
+          if (filteredPlayers.length) {
+            const player = filteredPlayers[0];
+            playerDetails.innerHTML = `<div class="card-body">
+                        <h5 class="card-title">${player.Name}</h5>
+                        <p class="card-text">Rank: ${player.Rank}<br>ERA: ${player.EarnedRunAverage}<br>Throws: ${player.Throws}</p>
+                    </div>`;
+          } else {
+            playerDetails.innerHTML = "<p>No player found.</p>";
+          }
+        });
+
+        // Pie Chart
+        const throwsCount = players.reduce((acc, player) => {
+          acc[player.Throws] = (acc[player.Throws] || 0) + 1;
+          return acc;
+        }, {});
+        new Chart(document.getElementById("pieChart"), {
+          type: "pie",
+          data: {
+            labels: Object.keys(throwsCount),
+            datasets: [
+              {
+                data: Object.values(throwsCount),
+                backgroundColor: ["#FF6384", "#36A2EB", "#FFCE56"],
+              },
+            ],
+          },
+        });
+      });
+    </script>
+  </body>
+</html>

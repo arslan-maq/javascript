@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Star Wars Data Dashboard</title>
+    <script
+      type="text/javascript"
+      src="https://www.gstatic.com/charts/loader.js"
+    ></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      body {
+        background-color: #1a202c;
+        color: #e2e8f0;
+      }
+      .chart-container {
+        width: 100%;
+        height: 400px;
+      }
+    </style>
+  </head>
+  <body class="p-4">
+    <div class="container mx-auto">
+      <h1 class="text-4xl text-center mb-8">Star Wars Data Visualization</h1>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+        <div
+          id="totalCharacters"
+          class="bg-gray-800 p-4 rounded-lg text-center"
+        ></div>
+        <div
+          id="totalSpecies"
+          class="bg-gray-800 p-4 rounded-lg text-center"
+        ></div>
+        <div
+          id="totalPlanets"
+          class="bg-gray-800 p-4 rounded-lg text-center"
+        ></div>
+        <div
+          id="totalSpaceships"
+          class="bg-gray-800 p-4 rounded-lg text-center"
+        ></div>
+      </div>
+
+      <div id="filmsTable" class="mb-8 overflow-x-auto"></div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div id="planetPopulation" class="chart-container"></div>
+        <div id="planetSize" class="chart-container"></div>
+        <div id="planetClimate" class="chart-container"></div>
+        <div id="starshipCost" class="chart-container"></div>
+        <div id="starshipManufacturers" class="chart-container"></div>
+        <div id="starshipPassengers" class="chart-container"></div>
+      </div>
+    </div>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", async () => {
+        google.charts.load("current", { packages: ["corechart", "table"] });
+        google.charts.setOnLoadCallback(drawCharts);
+
+        async function fetchData(url) {
+          let allData = [];
+          let response = await fetch(url);
+          let data = await response.json();
+          allData = allData.concat(data.results);
+          while (data.next) {
+            response = await fetch(data.next);
+            data = await response.json();
+            allData = allData.concat(data.results);
+          }
+          return allData;
+        }
+
+        async function drawCharts() {
+          const people = await fetchData("https://swapi.dev/api/people/");
+          const planets = await fetchData("https://swapi.dev/api/planets/");
+          const starships = await fetchData("https://swapi.dev/api/starships/");
+          const films = await fetchData("https://swapi.dev/api/films/");
+
+          document.getElementById(
+            "totalCharacters"
+          ).innerText = `Total Characters: ${people.length}`;
+          document.getElementById("totalSpecies").innerText = `Total Species: ${
+            new Set(people.map((p) => p.species[0] || "Unknown")).size
+          }`;
+          document.getElementById(
+            "totalPlanets"
+          ).innerText = `Total Planets: ${planets.length}`;
+          document.getElementById(
+            "totalSpaceships"
+          ).innerText = `Total Spaceships: ${starships.length}`;
+
+          // Films Table
+          let filmData = new google.visualization.DataTable();
+          filmData.addColumn("string", "Title");
+          filmData.addColumn("number", "Episode ID");
+          filmData.addColumn("string", "Release Date");
+          filmData.addColumn("string", "Director");
+          filmData.addRows(
+            films.map((film) => [
+              film.title,
+              film.episode_id,
+              film.release_date,
+              film.director,
+            ])
+          );
+          let table = new google.visualization.Table(
+            document.getElementById("filmsTable")
+          );
+          table.draw(filmData, {
+            showRowNumber: true,
+            width: "100%",
+            height: "100%",
+          });
+
+          // Chart Data Preparation
+          let planetPopData = [["Planet", "Population"]];
+          planets.forEach((planet) => {
+            if (planet.population !== "unknown") {
+              planetPopData.push([planet.name, parseInt(planet.population)]);
+            }
+          });
+
+          let planetSizeData = [["Planet", "Diameter"]];
+          planets
+            .sort((a, b) => parseInt(b.diameter) - parseInt(a.diameter))
+            .slice(0, 10)
+            .forEach((planet) => {
+              if (planet.diameter !== "unknown") {
+                planetSizeData.push([planet.name, parseInt(planet.diameter)]);
+              }
+            });
+
+          let climateData = [["Climate", "Count"]];
+          let climates = {};
+          planets.forEach((planet) => {
+            let climate = planet.climate.split(",")[0].trim();
+            climates[climate] = (climates[climate] || 0) + 1;
+          });
+          Object.entries(climates).forEach(([climate, count]) =>
+            climateData.push([climate, count])
+          );
+
+          let costData = [["Starship", "Cost"]];
+          starships.forEach((ship) => {
+            if (ship.cost_in_credits !== "unknown") {
+              costData.push([ship.name, parseInt(ship.cost_in_credits)]);
+            }
+          });
+
+          let manufacturerData = [["Manufacturer", "Count"]];
+          let manufacturers = {};
+          starships.forEach((ship) => {
+            ship.manufacturers.forEach((man) => {
+              manufacturers[man] = (manufacturers[man] || 0) + 1;
+            });
+          });
+          Object.entries(manufacturers).forEach(([man, count]) =>
+            manufacturerData.push([man, count])
+          );
+
+          let passengerData = [["Starship", "Passengers"]];
+          starships.forEach((ship) => {
+            if (ship.passengers !== "n/a" && ship.passengers !== "unknown") {
+              passengerData.push([
+                ship.name,
+                parseInt(ship.passengers.replace(/,/g, "")),
+              ]);
+            }
+          });
+
+          // Draw Charts
+          function drawPieChart(data, elementId, title) {
+            let dataTable = google.visualization.arrayToDataTable(data);
+            let options = {
+              title: title,
+              pieHole: 0.4,
+              legend: { position: "bottom" },
+            };
+            let chart = new google.visualization.PieChart(
+              document.getElementById(elementId)
+            );
+            chart.draw(dataTable, options);
+          }
+
+          function drawColumnChart(data, elementId, title, vAxisTitle) {
+            let dataTable = google.visualization.arrayToDataTable(data);
+            let options = {
+              title: title,
+              legend: { position: "bottom" },
+              vAxis: { title: vAxisTitle, format: "decimal" },
+              hAxis: { title: "Items" },
+            };
+            let chart = new google.visualization.ColumnChart(
+              document.getElementById(elementId)
+            );
+            chart.draw(dataTable, options);
+          }
+
+          function drawBarChart(data, elementId, title, vAxisTitle) {
+            let dataTable = google.visualization.arrayToDataTable(data);
+            let options = {
+              title: title,
+              legend: { position: "bottom" },
+              hAxis: { title: vAxisTitle },
+              vAxis: { title: "Count" },
+            };
+            let chart = new google.visualization.BarChart(
+              document.getElementById(elementId)
+            );
+            chart.draw(dataTable, options);
+          }
+
+          drawPieChart(
+            planetPopData,
+            "planetPopulation",
+            "Planet Population Distribution"
+          );
+          drawColumnChart(
+            planetSizeData,
+            "planetSize",
+            "Top 10 Largest Planets",
+            "Diameter (km)"
+          );
+          drawPieChart(
+            climateData,
+            "planetClimate",
+            "Planet Climate Distribution"
+          );
+          drawColumnChart(
+            costData,
+            "starshipCost",
+            "Starship Costs",
+            "Cost in Credits"
+          );
+          drawBarChart(
+            manufacturerData,
+            "starshipManufacturers",
+            "Starship Manufacturers",
+            "Starships"
+          );
+          drawBarChart(
+            passengerData,
+            "starshipPassengers",
+            "Starship Passenger Capacity",
+            "Passengers"
+          );
+        }
+      });
+    </script>
+  </body>
+</html>

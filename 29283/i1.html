@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Star Wars Data Dashboard</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
+      rel="stylesheet"
+    />
+    <script src="https://www.gstatic.com/charts/loader.js"></script>
+  </head>
+  <body class="bg-gray-900 text-white">
+    <div class="container mx-auto px-4 py-8">
+      <h1 class="text-4xl text-center mb-8">Star Wars Data Dashboard</h1>
+
+      <!-- Data Display Section -->
+      <div class="grid grid-cols-2 gap-4 text-center">
+        <div class="bg-gray-800 p-4 rounded">
+          <h2>Total Characters</h2>
+          <p id="total-characters" class="text-3xl">Loading...</p>
+        </div>
+        <div class="bg-gray-800 p-4 rounded">
+          <h2>Total Species</h2>
+          <p id="total-species" class="text-3xl">Loading...</p>
+        </div>
+        <div class="bg-gray-800 p-4 rounded">
+          <h2>Total Planets</h2>
+          <p id="total-planets" class="text-3xl">Loading...</p>
+        </div>
+        <div class="bg-gray-800 p-4 rounded">
+          <h2>Total Spaceships</h2>
+          <p id="total-spaceships" class="text-3xl">Loading...</p>
+        </div>
+      </div>
+
+      <!-- Films Table Section -->
+      <h2 class="text-2xl mt-8 mb-4">Films</h2>
+      <table class="table-auto w-full text-center bg-gray-800 rounded">
+        <thead>
+          <tr class="bg-gray-700">
+            <th class="p-4">Title</th>
+            <th class="p-4">Episode ID</th>
+            <th class="p-4">Release Date</th>
+            <th class="p-4">Director</th>
+          </tr>
+        </thead>
+        <tbody id="films-table">
+          <tr>
+            <td colspan="4" class="p-4">Loading...</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Charts Section -->
+      <div class="grid grid-cols-2 gap-4 mt-8">
+        <div id="planet-population-chart" class="bg-gray-800 p-4 rounded"></div>
+        <div id="largest-planets-chart" class="bg-gray-800 p-4 rounded"></div>
+        <div
+          id="climate-distribution-chart"
+          class="bg-gray-800 p-4 rounded"
+        ></div>
+        <div id="starship-cost-chart" class="bg-gray-800 p-4 rounded"></div>
+        <div
+          id="manufacturer-distribution-chart"
+          class="bg-gray-800 p-4 rounded"
+        ></div>
+        <div
+          id="passenger-distribution-chart"
+          class="bg-gray-800 p-4 rounded"
+        ></div>
+      </div>
+    </div>
+
+    <script>
+      // Load Google Charts
+      google.charts.load("current", { packages: ["corechart", "bar"] });
+      google.charts.setOnLoadCallback(initializeDashboard);
+
+      // SWAPI Endpoints
+      const SWAPI_BASE = "https://swapi.dev/api/";
+
+      // Fetch data and initialize dashboard
+      async function initializeDashboard() {
+        // Fetch SWAPI data
+        const [people, planets, starships, films] = await Promise.all([
+          fetch(SWAPI_BASE + "people/").then((res) => res.json()),
+          fetch(SWAPI_BASE + "planets/").then((res) => res.json()),
+          fetch(SWAPI_BASE + "starships/").then((res) => res.json()),
+          fetch(SWAPI_BASE + "films/").then((res) => res.json()),
+        ]);
+
+        // Display totals
+        document.getElementById("total-characters").textContent = people.count;
+        document.getElementById("total-planets").textContent = planets.count;
+        document.getElementById("total-spaceships").textContent =
+          starships.count;
+
+        // Calculate unique species
+        const speciesSet = new Set(
+          people.results.map((person) => person.species).flat()
+        );
+        document.getElementById("total-species").textContent = speciesSet.size;
+
+        // Populate films table
+        const filmsTable = document.getElementById("films-table");
+        filmsTable.innerHTML = films.results
+          .map(
+            (film) => `
+        <tr>
+          <td class="p-4">${film.title}</td>
+          <td class="p-4">${film.episode_id}</td>
+          <td class="p-4">${film.release_date}</td>
+          <td class="p-4">${film.director}</td>
+        </tr>
+      `
+          )
+          .join("");
+
+        // Prepare charts data
+        prepareCharts(planets.results, starships.results);
+      }
+
+      function prepareCharts(planets, starships) {
+        // Planets population distribution (Pie chart)
+        const populationData = google.visualization.arrayToDataTable([
+          ["Planet", "Population"],
+          ...planets.map((planet) => [
+            planet.name,
+            planet.population === "unknown" ? 0 : parseInt(planet.population),
+          ]),
+        ]);
+        const populationChart = new google.visualization.PieChart(
+          document.getElementById("planet-population-chart")
+        );
+        populationChart.draw(populationData, {
+          title: "Planet Population Distribution",
+          legend: { position: "bottom" },
+          backgroundColor: "#2D3748",
+          titleTextStyle: { color: "#ffffff" },
+          legendTextStyle: { color: "#ffffff" },
+        });
+
+        // Top 10 largest planets (Column chart)
+        const largestPlanetsData = google.visualization.arrayToDataTable([
+          ["Planet", "Diameter"],
+          ...planets
+            .filter(
+              (planet) =>
+                !isNaN(planet.diameter) && planet.diameter !== "unknown"
+            ) // Filter valid diameter
+            .sort((a, b) => b.diameter - a.diameter) // Sort by diameter
+            .slice(0, 10) // Take top 10 largest planets
+            .map((planet) => [planet.name, parseInt(planet.diameter)]), // Map to name and diameter
+        ]);
+
+        const largestPlanetsChart = new google.visualization.ColumnChart(
+          document.getElementById("largest-planets-chart")
+        );
+        largestPlanetsChart.draw(largestPlanetsData, {
+          title: "Top 10 Largest Planets",
+          legend: { position: "bottom" },
+          backgroundColor: "#2D3748",
+          titleTextStyle: { color: "#ffffff" },
+          legendTextStyle: { color: "#ffffff" },
+          hAxis: { textStyle: { color: "#ffffff" } },
+          vAxis: { textStyle: { color: "#ffffff" } },
+        });
+
+        // Climate distribution (Pie chart)
+        const climateData = google.visualization.arrayToDataTable([
+          ["Climate", "Number of Planets"],
+          ...Array.from(
+            planets.reduce((map, planet) => {
+              planet.climate.split(", ").forEach((climate) => {
+                map.set(climate, (map.get(climate) || 0) + 1);
+              });
+              return map;
+            }, new Map())
+          ),
+        ]);
+        const climateChart = new google.visualization.PieChart(
+          document.getElementById("climate-distribution-chart")
+        );
+        climateChart.draw(climateData, {
+          title: "Planets Climate Distribution",
+          legend: { position: "bottom" },
+          backgroundColor: "#2D3748",
+          titleTextStyle: { color: "#ffffff" },
+          legendTextStyle: { color: "#ffffff" },
+        });
+
+        // Starship cost in credits (Column chart)
+        const starshipCostData = google.visualization.arrayToDataTable([
+          ["Starship", "Cost (in credits)"],
+          ...starships.map((starship) => [
+            starship.name,
+            starship.cost_in_credits === "unknown"
+              ? 0
+              : parseInt(starship.cost_in_credits),
+          ]),
+        ]);
+        const starshipCostChart = new google.visualization.ColumnChart(
+          document.getElementById("starship-cost-chart")
+        );
+        starshipCostChart.draw(starshipCostData, {
+          title: "Starship Cost in Credits",
+          legend: { position: "bottom" },
+          backgroundColor: "#2D3748",
+          titleTextStyle: { color: "#ffffff" },
+          legendTextStyle: { color: "#ffffff" },
+          hAxis: { textStyle: { color: "#ffffff" } },
+          vAxis: { textStyle: { color: "#ffffff" } },
+        });
+
+        // Starship manufacturer distribution (Bar chart)
+        const manufacturerData = google.visualization.arrayToDataTable([
+          ["Manufacturer", "Number of Starships"],
+          ...Array.from(
+            starships.reduce((map, starship) => {
+              starship.manufacturer.split(", ").forEach((manufacturer) => {
+                map.set(manufacturer, (map.get(manufacturer) || 0) + 1);
+              });
+              return map;
+            }, new Map())
+          ),
+        ]);
+        const manufacturerChart = new google.visualization.BarChart(
+          document.getElementById("manufacturer-distribution-chart")
+        );
+        manufacturerChart.draw(manufacturerData, {
+          title: "Starship Manufacturer Distribution",
+          legend: { position: "bottom" },
+          backgroundColor: "#2D3748",
+          titleTextStyle: { color: "#ffffff" },
+          legendTextStyle: { color: "#ffffff" },
+          hAxis: { textStyle: { color: "#ffffff" } },
+          vAxis: { textStyle: { color: "#ffffff" } },
+        });
+
+        // Passenger capacity distribution (Column chart)
+        const passengerData = google.visualization.arrayToDataTable([
+          ["Starship", "Passengers"],
+          ...starships.map((starship) => [
+            starship.name,
+            starship.passengers === "unknown"
+              ? 0
+              : parseInt(starship.passengers),
+          ]),
+        ]);
+        const passengerChart = new google.visualization.ColumnChart(
+          document.getElementById("passenger-distribution-chart")
+        );
+        passengerChart.draw(passengerData, {
+          title: "Starship Passenger Capacity",
+          legend: { position: "bottom" },
+          backgroundColor: "#2D3748",
+          titleTextStyle: { color: "#ffffff" },
+          legendTextStyle: { color: "#ffffff" },
+          hAxis: { textStyle: { color: "#ffffff" } },
+          vAxis: { textStyle: { color: "#ffffff" } },
+        });
+      }
+    </script>
+  </body>
+</html>

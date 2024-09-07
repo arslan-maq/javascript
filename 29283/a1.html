@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Star Wars Dashboard</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        background-color: #1a202c;
+        color: #e2e8f0;
+      }
+      .chart-container {
+        width: 100%;
+        max-width: 600px;
+        margin: 20px auto;
+      }
+    </style>
+  </head>
+  <body class="p-4">
+    <div class="container mx-auto">
+      <h1 class="text-4xl text-center mb-8">Star Wars Data Visualization</h1>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div class="bg-gray-800 p-4 rounded text-center">
+          <span id="totalCharacters" class="text-2xl"></span> Characters
+        </div>
+        <div class="bg-gray-800 p-4 rounded text-center">
+          <span id="totalSpecies" class="text-2xl"></span> Species
+        </div>
+        <div class="bg-gray-800 p-4 rounded text-center">
+          <span id="totalPlanets" class="text-2xl"></span> Planets
+        </div>
+        <div class="bg-gray-800 p-4 rounded text-center">
+          <span id="totalSpaceships" class="text-2xl"></span> Spaceships
+        </div>
+      </div>
+      <div id="charts" class="grid grid-cols-1 lg:grid-cols-2 gap-4"></div>
+      <div id="filmsTable" class="mt-4"></div>
+    </div>
+
+    <script
+      type="text/javascript"
+      src="https://www.gstatic.com/charts/loader.js"
+    ></script>
+    <script type="text/javascript">
+      google.charts.load("current", { packages: ["corechart", "table"] });
+      google.charts.setOnLoadCallback(init);
+
+      async function init() {
+        const [characters, species, planets, starships, films] =
+          await Promise.all([
+            fetch("https://swapi.dev/api/people/").then((r) => r.json()),
+            fetch("https://swapi.dev/api/species/").then((r) => r.json()),
+            fetch("https://swapi.dev/api/planets/").then((r) => r.json()),
+            fetch("https://swapi.dev/api/starships/").then((r) => r.json()),
+            fetch("https://swapi.dev/api/films/").then((r) => r.json()),
+          ]);
+
+        // Counters
+        document.getElementById("totalCharacters").textContent =
+          characters.count;
+        document.getElementById("totalSpecies").textContent = new Set(
+          characters.results
+            .map((person) => person.species[0] || "Unknown")
+            .filter(Boolean)
+        ).size;
+        document.getElementById("totalPlanets").textContent = planets.count;
+        document.getElementById("totalSpaceships").textContent =
+          starships.count;
+
+        // Charts Data
+        const planetPopulations = planets.results.map((p) => ({
+          name: p.name,
+          population: parseInt(p.population) || 0,
+        }));
+        const climates = planets.results.reduce((acc, planet) => {
+          planet.climate
+            .split(",")
+            .forEach(
+              (climate) =>
+                (acc[climate.trim()] = (acc[climate.trim()] || 0) + 1)
+            );
+          return acc;
+        }, {});
+        const largestPlanets = planets.results
+          .sort((a, b) => parseFloat(b.diameter) - parseFloat(a.diameter))
+          .slice(0, 10);
+        const starshipCosts = starships.results.map((ship) => ({
+          name: ship.name,
+          cost: parseFloat(ship.cost_in_credits) || 0,
+        }));
+        const manufacturers = starships.results.reduce((acc, ship) => {
+          const man = ship.manufacturer.split(",").map((m) => m.trim());
+          man.forEach((m) => (acc[m] = (acc[m] || 0) + 1));
+          return acc;
+        }, {});
+
+        // Draw Charts
+        function drawChart(id, data, type, options) {
+          const chartDiv = document.createElement("div");
+          chartDiv.className = "chart-container";
+          chartDiv.id = id;
+          document.getElementById("charts").appendChild(chartDiv);
+          const chart = new google.visualization[type](chartDiv);
+          chart.draw(google.visualization.arrayToDataTable(data), options);
+        }
+
+        drawChart(
+          "populationPie",
+          [["Planet", "Population"], ...planetPopulations],
+          "PieChart",
+          {
+            title: "Planet Population Distribution",
+            legend: { position: "bottom" },
+          }
+        );
+        drawChart(
+          "climatePie",
+          [["Climate", "Count"], ...Object.entries(climates)],
+          "PieChart",
+          {
+            title: "Planet Climate Distribution",
+            legend: { position: "bottom" },
+          }
+        );
+        drawChart(
+          "largestPlanets",
+          [
+            ["Planet", "Diameter"],
+            ...largestPlanets.map((p) => [p.name, parseFloat(p.diameter)]),
+          ],
+          "ColumnChart",
+          { title: "Top 10 Largest Planets", legend: { position: "none" } }
+        );
+        // Additional charts for starships can be drawn similarly
+
+        // Films Table
+        const filmsData = films.results.map((film) => [
+          film.title,
+          film.episode_id,
+          film.release_date,
+          film.director,
+        ]);
+        const table = new google.visualization.Table(
+          document.getElementById("filmsTable")
+        );
+        table.draw(
+          google.visualization.arrayToDataTable([
+            ["Title", "Episode", "Release Date", "Director"],
+            ...filmsData,
+          ]),
+          { showRowNumber: true, width: "100%" }
+        );
+      }
+    </script>
+  </body>
+</html>
