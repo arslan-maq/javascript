@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Beer Dashboard</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Charts -->
+    <script
+      type="text/javascript"
+      src="https://www.gstatic.com/charts/loader.js"
+    ></script>
+    <!-- Custom CSS -->
+    <style>
+      /* Custom styles for the dashboard */
+      .chart {
+        width: 100%;
+        height: 400px;
+      }
+
+      .card {
+        background-color: #1a202c;
+        border-radius: 0.375rem;
+        padding: 1rem;
+        box-shadow: 0 0 0.5rem rgba(0, 0, 0, 0.5);
+      }
+
+      .card h5 {
+        font-size: 1.25rem;
+        color: #f7fafc;
+      }
+    </style>
+  </head>
+  <body class="bg-gray-900 text-gray-200">
+    <!-- Navigation Bar -->
+    <nav class="bg-gray-800 p-4">
+      <div class="container mx-auto">
+        <h1 class="text-2xl font-bold">Beer Dashboard</h1>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container mx-auto p-6">
+      <!-- Top Players Section -->
+      <div class="mb-6">
+        <h2 class="text-xl font-bold mb-4">Top Beers</h2>
+        <div
+          id="topBeers"
+          class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+        ></div>
+      </div>
+
+      <!-- Line Chart Section -->
+      <div class="mb-6">
+        <h2 class="text-xl font-bold mb-4">ABV of Top 10 Beers</h2>
+        <div id="lineChart" class="chart"></div>
+      </div>
+
+      <!-- Search Section -->
+      <div class="mb-6">
+        <h2 class="text-xl font-bold mb-4">Search Beers</h2>
+        <input
+          id="searchInput"
+          type="text"
+          class="p-2 w-full rounded bg-gray-800 border border-gray-600"
+          placeholder="Search by name..."
+        />
+        <div id="beerDetails" class="mt-4"></div>
+      </div>
+
+      <!-- Pie Chart Section -->
+      <div>
+        <h2 class="text-xl font-bold mb-4">Pie Chart of Beer Types</h2>
+        <div id="pieChart" class="chart"></div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 p-4 text-center">
+      <p class="text-sm">Proudly Built for All Beer Fans Worldwide 🍺</p>
+    </footer>
+
+    <!-- Custom JavaScript -->
+    <script>
+      // Load the Google Charts library
+      google.charts.load("current", { packages: ["corechart", "line"] });
+      google.charts.setOnLoadCallback(drawDashboardCharts);
+
+      // Fetch data from the API
+      async function fetchBeerData() {
+        const response = await fetch("https://api.sampleapis.com/beers/ale");
+        return response.json();
+      }
+
+      // Draw the charts and populate the dashboard
+      async function drawDashboardCharts() {
+        const data = await fetchBeerData();
+
+        // Top Beers Section
+        const topBeersContainer = document.getElementById("topBeers");
+        data.sort((a, b) => b.rating.average - a.rating.average); // Sort by average rating
+        data.slice(0, 5).forEach((beer) => {
+          topBeersContainer.innerHTML += `
+      <div class="card flex items-center">
+        <img src="${beer.image}" alt="${beer.name}" class="w-16 h-16 object-cover mr-4">
+        <div>
+          <h5 class="text-lg font-bold">${beer.name}</h5>
+          <p><strong>Price:</strong> ${beer.price}</p>
+          <p><strong>Rating:</strong> ${beer.rating.average} (${beer.rating.reviews} reviews)</p>
+        </div>
+      </div>`;
+        });
+
+        // Line Chart of Average Rating for Top 10 Beers
+        const topBeersForChart = data
+          .sort((a, b) => b.rating.average - a.rating.average)
+          .slice(0, 10);
+        const lineChartData = [["Beer", "Average Rating"]];
+        topBeersForChart.forEach((beer) =>
+          lineChartData.push([beer.name, beer.rating.average])
+        );
+
+        const lineData = google.visualization.arrayToDataTable(lineChartData);
+        const lineOptions = {
+          title: "Top 10 Beers by Average Rating",
+          legend: { position: "bottom" },
+          backgroundColor: "#333",
+          titleTextStyle: { color: "#fff" },
+          legendTextStyle: { color: "#fff" },
+          hAxis: { textStyle: { color: "#fff" } },
+          vAxis: { textStyle: { color: "#fff" } },
+        };
+
+        const lineChart = new google.visualization.LineChart(
+          document.getElementById("lineChart")
+        );
+        lineChart.draw(lineData, lineOptions);
+
+        // Pie Chart of Beer Prices
+        const priceCounts = data.reduce((acc, beer) => {
+          const price = beer.price;
+          acc[price] = (acc[price] || 0) + 1;
+          return acc;
+        }, {});
+        const pieChartData = [["Price", "Count"]];
+        for (const [price, count] of Object.entries(priceCounts)) {
+          pieChartData.push([price, count]);
+        }
+
+        const pieData = google.visualization.arrayToDataTable(pieChartData);
+        const pieOptions = {
+          title: "Distribution of Beer Prices",
+          legend: { position: "bottom" },
+          backgroundColor: "#333",
+          titleTextStyle: { color: "#fff" },
+          legendTextStyle: { color: "#fff" },
+        };
+
+        const pieChart = new google.visualization.PieChart(
+          document.getElementById("pieChart")
+        );
+        pieChart.draw(pieData, pieOptions);
+
+        // Search Section
+        const searchInput = document.getElementById("searchInput");
+        const beerDetails = document.getElementById("beerDetails");
+
+        searchInput.addEventListener("input", () => {
+          const query = searchInput.value.toLowerCase();
+          const filteredBeers = data.filter((beer) =>
+            beer.name.toLowerCase().includes(query)
+          );
+          beerDetails.innerHTML = filteredBeers
+            .map(
+              (beer) => `
+      <div class="card flex items-center">
+        <img src="${beer.image}" alt="${beer.name}" class="w-16 h-16 object-cover mr-4">
+        <div>
+          <h5 class="text-lg font-bold">${beer.name}</h5>
+          <p><strong>Price:</strong> ${beer.price}</p>
+          <p><strong>Rating:</strong> ${beer.rating.average} (${beer.rating.reviews} reviews)</p>
+        </div>
+      </div>`
+            )
+            .join("");
+        });
+      }
+    </script>
+  </body>
+</html>

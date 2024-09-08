@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Beer Dashboard</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
+      rel="stylesheet"
+    />
+    <script
+      type="text/javascript"
+      src="https://www.gstatic.com/charts/loader.js"
+    ></script>
+  </head>
+  <body class="bg-gray-900 text-white">
+    <nav class="bg-gray-800 p-4">
+      <h1 class="text-2xl">Beer Dashboard</h1>
+    </nav>
+
+    <div id="content" class="p-4">
+      <div id="topBeers" class="mb-8"></div>
+      <div id="lineChart" class="mb-8"></div>
+      <div class="flex mb-8">
+        <input
+          id="beerSearch"
+          type="text"
+          placeholder="Search beers by name..."
+          class="flex-grow p-2 bg-gray-700 text-white rounded-l"
+        />
+        <button onclick="searchBeer()" class="bg-blue-500 p-2 rounded-r">
+          Search
+        </button>
+      </div>
+      <div id="searchResult" class="mb-8"></div>
+      <div id="pieChart"></div>
+    </div>
+
+    <footer class="bg-gray-800 text-center p-4">
+      Proudly Built for All Beer Fans Worldwide 🍺
+    </footer>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        google.charts.load("current", { packages: ["corechart"] });
+        google.charts.setOnLoadCallback(fetchBeers);
+
+        function fetchBeers() {
+          fetch("https://api.sampleapis.com/beers/ale")
+            .then((response) => response.json())
+            .then((data) => {
+              displayTopBeers(data.slice(0, 5));
+              drawLineChart(data.slice(0, 10));
+              drawPieChart(data);
+            })
+            .catch((error) => console.error("Error:", error));
+        }
+
+        function displayTopBeers(beers) {
+          let html =
+            '<h2 class="text-xl mb-2">Top Beers</h2><ul class="list-disc pl-5">';
+          beers.forEach((beer) => {
+            html += `<li>${beer.name} - ABV: ${beer.abv} - Type: ${
+              beer.style || "Unknown"
+            }</li>`;
+          });
+          html += "</ul>";
+          document.getElementById("topBeers").innerHTML = html;
+        }
+
+        function drawLineChart(beers) {
+          var data = new google.visualization.DataTable();
+          data.addColumn("string", "Beer");
+          data.addColumn("number", "ABV");
+          beers.forEach((beer) => data.addRow([beer.name, beer.abv]));
+
+          var options = {
+            title: "ABV of Top Beers",
+            curveType: "function",
+            legend: { position: "bottom" },
+            hAxis: { title: "Beer Name" },
+            vAxis: { title: "ABV" },
+          };
+
+          var chart = new google.visualization.LineChart(
+            document.getElementById("lineChart")
+          );
+          chart.draw(data, options);
+        }
+
+        function drawPieChart(beers) {
+          let typeCount = beers.reduce((acc, beer) => {
+            acc[beer.style] = (acc[beer.style] || 0) + 1;
+            return acc;
+          }, {});
+
+          var data = google.visualization.arrayToDataTable([
+            ["Type", "Count"],
+            ...Object.entries(typeCount),
+          ]);
+
+          var options = {
+            title: "Beer Type Distribution",
+            pieHole: 0.4,
+          };
+
+          var chart = new google.visualization.PieChart(
+            document.getElementById("pieChart")
+          );
+          chart.draw(data, options);
+        }
+
+        function searchBeer() {
+          const input = document
+            .getElementById("beerSearch")
+            .value.toLowerCase();
+          fetchBeers().then(() => {
+            // This assumes fetchBeers populates some global data array or similar
+            // Here you would filter this data based on input
+            // Placeholder for autocomplete logic
+            console.log("Search for:", input);
+          });
+        }
+      });
+    </script>
+  </body>
+</html>

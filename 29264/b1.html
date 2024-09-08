@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Beer Dashboard</title>
+    <!-- Tailwind CSS -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
+      rel="stylesheet"
+    />
+    <!-- Google Charts -->
+    <script
+      type="text/javascript"
+      src="https://www.gstatic.com/charts/loader.js"
+    ></script>
+  </head>
+  <body class="bg-gray-900 text-white">
+    <!-- Navigation Bar -->
+    <nav class="bg-gray-800 p-4">
+      <h1 class="text-2xl">Beer Dashboard</h1>
+    </nav>
+
+    <div class="container mx-auto p-4">
+      <!-- Top Beers Section -->
+      <div
+        id="topBeers"
+        class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8"
+      ></div>
+
+      <!-- Line Chart -->
+      <div id="lineChart" class="h-96 mb-8"></div>
+
+      <!-- Search Section -->
+      <div class="mb-8">
+        <input
+          id="beerSearch"
+          type="text"
+          placeholder="Search beer by starting letter..."
+          class="p-2 w-full bg-gray-700 text-white"
+        />
+        <div id="searchResults"></div>
+      </div>
+
+      <!-- Pie Chart -->
+      <div id="pieChart" class="h-96"></div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="text-center p-4 bg-gray-800">
+      Proudly Built for All Beer Fans Worldwide 🍺
+    </footer>
+
+    <script>
+      // JavaScript will be here to handle data fetching, charts, and search functionality
+      document.addEventListener("DOMContentLoaded", function () {
+        google.charts.load("current", { packages: ["corechart"] });
+        fetch("https://api.sampleapis.com/beers/ale")
+          .then((response) => response.json())
+          .then((data) => {
+            const topBeers = data.slice(0, 5);
+            const abvData = [["Beer", "ABV"]];
+            const typeDistribution = {};
+
+            data.forEach((beer) => {
+              // Prepare data for line chart
+              if (abvData.length < 11)
+                abvData.push([beer.name, parseFloat(beer.abv)]);
+              // Count beer types for pie chart
+              typeDistribution[beer.type] =
+                (typeDistribution[beer.type] || 0) + 1;
+            });
+
+            // Top Beers Display
+            topBeers.forEach((beer) => {
+              document.getElementById(
+                "topBeers"
+              ).innerHTML += `<div class="bg-gray-700 p-4 rounded">${beer.name} - ABV: ${beer.abv}% - Type: ${beer.type}</div>`;
+            });
+
+            // Draw Charts
+            google.charts.setOnLoadCallback(() => {
+              // Line Chart for ABV
+              let lineChart = new google.visualization.LineChart(
+                document.getElementById("lineChart")
+              );
+              lineChart.draw(google.visualization.arrayToDataTable(abvData), {
+                title: "Top 10 Beers by ABV",
+                curveType: "function",
+                legend: { position: "bottom" },
+              });
+
+              // Pie Chart for Beer Types
+              let pieData = [["Type", "Count"]];
+              for (let type in typeDistribution) {
+                pieData.push([type, typeDistribution[type]]);
+              }
+              let pieChart = new google.visualization.PieChart(
+                document.getElementById("pieChart")
+              );
+              pieChart.draw(google.visualization.arrayToDataTable(pieData), {
+                title: "Distribution of Beer Types",
+              });
+            });
+
+            // Search functionality
+            const searchInput = document.getElementById("beerSearch");
+            searchInput.addEventListener("input", function (e) {
+              let value = e.target.value.toLowerCase();
+              let results = data.filter((beer) =>
+                beer.name.toLowerCase().startsWith(value)
+              );
+              document.getElementById("searchResults").innerHTML = results
+                .map(
+                  (beer) =>
+                    `<div class="bg-gray-700 p-2 my-1">${beer.name} - ABV: ${beer.abv}%</div>`
+                )
+                .join("");
+            });
+          });
+      });
+    </script>
+  </body>
+</html>
