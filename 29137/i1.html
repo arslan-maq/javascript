@@ -90,6 +90,19 @@
         cursor: pointer;
         transition: background-color;
       }
+      /* Gridline styling for a faded light grey color */
+      .grid line {
+        stroke: lightgrey;
+        stroke-opacity: 0.7;
+        shape-rendering: crispEdges;
+      }
+
+      /* Optional: Remove the domain line from the axes */
+      .axis path,
+      .axis line {
+        fill: none;
+        stroke: none;
+      }
     </style>
   </head>
   <body>
@@ -246,13 +259,15 @@
       }
 
       // Render timeline
+
+      // Render improved timeline with gridlines
       function renderTimeline(articles) {
         // Remove previous SVG if it exists
         d3.select("#timeline").selectAll("svg").remove();
 
         const width = document.getElementById("timeline").offsetWidth;
         const height = 300;
-        const margin = { top: 20, right: 20, bottom: 50, left: 50 };
+        const margin = { top: 40, right: 20, bottom: 60, left: 50 };
 
         const svg = d3
           .select("#timeline")
@@ -272,7 +287,8 @@
           .domain([0, d3.max(articles, (d) => d.citations)])
           .range([height - margin.top - margin.bottom, 0]);
 
-        svg
+        // Add X-axis
+        const xAxis = svg
           .append("g")
           .attr(
             "transform",
@@ -280,14 +296,79 @@
           )
           .call(d3.axisBottom(x).ticks(d3.timeYear));
 
-        svg.append("g").call(d3.axisLeft(y));
+        // Add Y-axis
+        const yAxis = svg.append("g").call(d3.axisLeft(y));
 
+        // X-axis label
+        svg
+          .append("text")
+          .attr("x", (width - margin.left - margin.right) / 2)
+          .attr("y", height - 15)
+          .attr("text-anchor", "middle")
+          .style("font-size", "12px")
+          .text("Publication Date");
+
+        // Y-axis label
+        svg
+          .append("text")
+          .attr("transform", "rotate(-90)")
+          .attr("y", -margin.left + 10)
+          .attr("x", -(height - margin.top - margin.bottom) / 2)
+          .attr("dy", "-1em")
+          .attr("text-anchor", "middle")
+          .style("font-size", "12px")
+          .text("Citations");
+
+        // Chart title
+        svg
+          .append("text")
+          .attr("x", (width - margin.left - margin.right) / 2)
+          .attr("y", -10)
+          .attr("text-anchor", "middle")
+          .style("font-size", "16px")
+          .style("font-weight", "bold")
+          .text("Article Citations Over Time");
+
+        // Add gridlines
+        function makeXGridlines() {
+          return d3.axisBottom(x).ticks(d3.timeYear);
+        }
+
+        function makeYGridlines() {
+          return d3.axisLeft(y).ticks(5);
+        }
+
+        // Add X-axis gridlines
+        svg
+          .append("g")
+          .attr("class", "grid")
+          .attr(
+            "transform",
+            `translate(0, ${height - margin.top - margin.bottom})`
+          )
+          .call(
+            makeXGridlines()
+              .tickSize(-(height - margin.top - margin.bottom))
+              .tickFormat("")
+          );
+
+        // Add Y-axis gridlines
+        svg
+          .append("g")
+          .attr("class", "grid")
+          .call(
+            makeYGridlines()
+              .tickSize(-(width - margin.left - margin.right))
+              .tickFormat("")
+          );
+
+        // Line
         svg
           .append("path")
           .datum(articles)
           .attr("fill", "none")
-          .attr("stroke", "steelblue")
-          .attr("stroke-width", 1.5)
+          .attr("stroke", "#007bff")
+          .attr("stroke-width", 2)
           .attr(
             "d",
             d3
@@ -296,19 +377,47 @@
               .y((d) => y(d.citations))
           );
 
-        svg
+        // Circles
+        const circles = svg
           .selectAll("circle")
           .data(articles)
           .enter()
           .append("circle")
           .attr("cx", (d) => x(d.publication_date))
           .attr("cy", (d) => y(d.citations))
-          .attr("r", 4)
-          .attr("fill", "orange")
-          .append("title")
-          .text((d) => `${d.title}: ${d.citations} citations`);
-      }
+          .attr("r", 6)
+          .attr("fill", "#ff9933")
+          .style("cursor", "pointer");
 
+        // Tooltips
+        const tooltip = d3
+          .select("body")
+          .append("div")
+          .attr("class", "tooltip")
+          .style("opacity", 0);
+
+        circles
+          .on("mouseover", function (event, d) {
+            d3.select(this).attr("r", 8);
+            tooltip.transition().duration(200).style("opacity", 1);
+            tooltip
+              .html(
+                `<strong>${d.title}</strong><br>Citations: ${
+                  d.citations
+                }<br>Date: ${d.publication_date.toLocaleDateString()}`
+              )
+              .style("left", event.pageX + "px")
+              .style("top", event.pageY - 28 + "px")
+              .style("background-color", "white")
+              .style("border", "1px solid black")
+              .style("padding", "5px")
+              .style("border-radius", "5px");
+          })
+          .on("mouseout", function () {
+            d3.select(this).attr("r", 6);
+            tooltip.transition().duration(200).style("opacity", 0);
+          });
+      }
       // Render visualization
       function renderVisualization() {
         const parsedData = parseData(data);

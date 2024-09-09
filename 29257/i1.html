@@ -15,17 +15,25 @@
     ></script>
 
     <style>
+      body {
+        background-color: #f8f9fa;
+      }
+
       .card {
-        padding: 10px;
+        padding: 15px;
         border-radius: 10px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        background-color: #ffffff;
+        margin-bottom: 20px;
       }
 
       .card-title {
-        font-size: 14px;
+        font-size: 18px;
+        font-weight: bold;
       }
 
       .card-text {
-        font-size: 10px;
+        font-size: 14px;
       }
 
       .progress {
@@ -37,7 +45,17 @@
       }
 
       h5.card-title {
-        font-size: 14px;
+        font-size: 18px;
+      }
+
+      @media (max-width: 767px) {
+        .card-title {
+          font-size: 16px;
+        }
+
+        .card-text {
+          font-size: 12px;
+        }
       }
     </style>
   </head>
