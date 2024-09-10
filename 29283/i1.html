@@ -11,34 +11,58 @@
     <script src="https://www.gstatic.com/charts/loader.js"></script>
   </head>
   <body class="bg-gray-900 text-white">
-    <div class="container mx-auto px-4 py-8">
-      <h1 class="text-4xl text-center mb-8">Star Wars Data Dashboard</h1>
+    <!-- Header Section -->
+    <header class="bg-gray-800 py-6">
+      <div class="container mx-auto text-center">
+        <h1 class="text-5xl font-bold">Star Wars Data Dashboard</h1>
+        <p class="mt-2 text-lg text-gray-400">
+          Explore various data from Star Wars Universe
+        </p>
+      </div>
+    </header>
+
+    <!-- Main Content Section -->
+    <main class="container mx-auto px-4 py-8">
+      <!-- Filter Section -->
+      <div class="mb-8">
+        <label for="film-filter" class="block text-xl mb-2"
+          >Select a Film:</label
+        >
+        <select
+          id="film-filter"
+          class="w-full p-3 bg-gray-800 border border-gray-700 rounded text-white"
+        >
+          <option value="">All Films</option>
+        </select>
+      </div>
 
       <!-- Data Display Section -->
       <div class="grid grid-cols-2 gap-4 text-center">
-        <div class="bg-gray-800 p-4 rounded">
-          <h2>Total Characters</h2>
-          <p id="total-characters" class="text-3xl">Loading...</p>
+        <div class="bg-gray-800 p-4 rounded shadow-lg">
+          <h2 class="text-lg font-semibold">Total Characters</h2>
+          <p id="total-characters" class="text-3xl font-bold">Loading...</p>
         </div>
-        <div class="bg-gray-800 p-4 rounded">
-          <h2>Total Species</h2>
-          <p id="total-species" class="text-3xl">Loading...</p>
+        <div class="bg-gray-800 p-4 rounded shadow-lg">
+          <h2 class="text-lg font-semibold">Total Species</h2>
+          <p id="total-species" class="text-3xl font-bold">Loading...</p>
         </div>
-        <div class="bg-gray-800 p-4 rounded">
-          <h2>Total Planets</h2>
-          <p id="total-planets" class="text-3xl">Loading...</p>
+        <div class="bg-gray-800 p-4 rounded shadow-lg">
+          <h2 class="text-lg font-semibold">Total Planets</h2>
+          <p id="total-planets" class="text-3xl font-bold">Loading...</p>
         </div>
-        <div class="bg-gray-800 p-4 rounded">
-          <h2>Total Spaceships</h2>
-          <p id="total-spaceships" class="text-3xl">Loading...</p>
+        <div class="bg-gray-800 p-4 rounded shadow-lg">
+          <h2 class="text-lg font-semibold">Total Spaceships</h2>
+          <p id="total-spaceships" class="text-3xl font-bold">Loading...</p>
         </div>
       </div>
 
       <!-- Films Table Section -->
-      <h2 class="text-2xl mt-8 mb-4">Films</h2>
-      <table class="table-auto w-full text-center bg-gray-800 rounded">
+      <h2 class="text-2xl mt-8 mb-4 font-semibold">Films</h2>
+      <table
+        class="table-auto w-full text-center bg-gray-800 rounded shadow-lg"
+      >
         <thead>
-          <tr class="bg-gray-700">
+          <tr class="bg-gray-700 text-gray-300">
             <th class="p-4">Title</th>
             <th class="p-4">Episode ID</th>
             <th class="p-4">Release Date</th>
@@ -54,30 +78,45 @@
 
       <!-- Charts Section -->
       <div class="grid grid-cols-2 gap-4 mt-8">
-        <div id="planet-population-chart" class="bg-gray-800 p-4 rounded"></div>
-        <div id="largest-planets-chart" class="bg-gray-800 p-4 rounded"></div>
+        <div
+          id="planet-population-chart"
+          class="bg-gray-800 p-4 rounded shadow-lg"
+        ></div>
+        <div
+          id="largest-planets-chart"
+          class="bg-gray-800 p-4 rounded shadow-lg"
+        ></div>
         <div
           id="climate-distribution-chart"
-          class="bg-gray-800 p-4 rounded"
+          class="bg-gray-800 p-4 rounded shadow-lg"
         ></div>
-        <div id="starship-cost-chart" class="bg-gray-800 p-4 rounded"></div>
+        <div
+          id="starship-cost-chart"
+          class="bg-gray-800 p-4 rounded shadow-lg"
+        ></div>
         <div
           id="manufacturer-distribution-chart"
-          class="bg-gray-800 p-4 rounded"
+          class="bg-gray-800 p-4 rounded shadow-lg"
         ></div>
         <div
           id="passenger-distribution-chart"
-          class="bg-gray-800 p-4 rounded"
+          class="bg-gray-800 p-4 rounded shadow-lg"
         ></div>
       </div>
-    </div>
+    </main>
+
+    <!-- Footer Section -->
+    <footer class="bg-gray-800 py-6 mt-8">
+      <div class="container mx-auto text-center">
+        <p class="text-gray-400">Star Wars Data Dashboard &copy; 2024</p>
+      </div>
+    </footer>
 
     <script>
       // Load Google Charts
       google.charts.load("current", { packages: ["corechart", "bar"] });
       google.charts.setOnLoadCallback(initializeDashboard);
 
-      // SWAPI Endpoints
       const SWAPI_BASE = "https://swapi.dev/api/";
 
       // Fetch data and initialize dashboard
@@ -96,28 +135,47 @@
         document.getElementById("total-spaceships").textContent =
           starships.count;
 
-        // Calculate unique species
         const speciesSet = new Set(
           people.results.map((person) => person.species).flat()
         );
         document.getElementById("total-species").textContent = speciesSet.size;
 
-        // Populate films table
+        // Populate films table and filter
         const filmsTable = document.getElementById("films-table");
-        filmsTable.innerHTML = films.results
+        const filmFilter = document.getElementById("film-filter");
+
+        filmFilter.innerHTML += films.results
           .map(
-            (film) => `
-        <tr>
-          <td class="p-4">${film.title}</td>
-          <td class="p-4">${film.episode_id}</td>
-          <td class="p-4">${film.release_date}</td>
-          <td class="p-4">${film.director}</td>
-        </tr>
-      `
+            (film) =>
+              `<option value="${film.episode_id}">${film.title}</option>`
           )
           .join("");
 
-        // Prepare charts data
+        function filterFilms(episodeId) {
+          const filteredFilms = episodeId
+            ? films.results.filter((film) => film.episode_id == episodeId)
+            : films.results;
+          filmsTable.innerHTML = filteredFilms
+            .map(
+              (film) => `
+            <tr>
+              <td class="p-4">${film.title}</td>
+              <td class="p-4">${film.episode_id}</td>
+              <td class="p-4">${film.release_date}</td>
+              <td class="p-4">${film.director}</td>
+            </tr>
+          `
+            )
+            .join("");
+        }
+
+        filmFilter.addEventListener("change", (event) => {
+          filterFilms(event.target.value);
+        });
+
+        filterFilms(); // Initialize with all films
+
+        // Prepare charts
         prepareCharts(planets.results, starships.results);
       }
 
