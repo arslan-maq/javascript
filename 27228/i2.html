@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Article Metadata Explorer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vis-network@9.1.2/dist/vis-network.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/moment@2.29.1/moment.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-moment@1.0.1/dist/chartjs-adapter-moment.min.js"></script>
+  </head>
+  <body class="bg-gray-100 text-gray-800 font-sans">
+    <!-- Header -->
+    <header class="bg-blue-600 py-4 shadow-lg">
+      <h1 class="text-center text-white text-3xl font-bold">
+        Article Metadata Explorer
+      </h1>
+    </header>
+
+    <!-- Filters -->
+    <section class="my-8">
+      <div class="max-w-7xl mx-auto bg-white p-6 rounded-lg shadow-md">
+        <h2 class="text-2xl font-semibold mb-6 text-gray-700">Filters</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <!-- Date Range Filter -->
+          <div>
+            <label
+              for="startDate"
+              class="block text-sm font-medium text-gray-600 mb-2"
+              >Start Date</label
+            >
+            <input
+              type="date"
+              id="startDate"
+              class="block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          <div>
+            <label
+              for="endDate"
+              class="block text-sm font-medium text-gray-600 mb-2"
+              >End Date</label
+            >
+            <input
+              type="date"
+              id="endDate"
+              class="block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          <!-- Author Filter -->
+          <div>
+            <label
+              for="author"
+              class="block text-sm font-medium text-gray-600 mb-2"
+              >Author</label
+            >
+            <select
+              id="author"
+              class="block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+            >
+              <!-- Options will be added dynamically -->
+            </select>
+          </div>
+
+          <!-- Topic Filter -->
+          <div>
+            <label
+              for="topic"
+              class="block text-sm font-medium text-gray-600 mb-2"
+              >Topic</label
+            >
+            <select
+              id="topic"
+              class="block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+            >
+              <!-- Options will be added dynamically -->
+            </select>
+          </div>
+
+          <!-- Filter and Reset Button -->
+          <div class="col-span-1 md:col-span-3 flex justify-end gap-4">
+            <button
+              onclick="applyFilters()"
+              class="bg-blue-600 text-white py-3 px-6 rounded-lg shadow-md font-bold hover:bg-blue-500 transition duration-300"
+            >
+              Apply Filters
+            </button>
+            <button
+              onclick="resetFilters()"
+              class="bg-gray-600 text-white py-3 px-6 rounded-lg shadow-md font-bold hover:bg-gray-500 transition duration-300"
+            >
+              Reset Filters
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Visualizations -->
+    <section class="max-w-7xl mx-auto mb-8">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Bar Chart -->
+        <div class="bg-white p-6 rounded-lg shadow-md">
+          <h2 class="text-xl font-semibold mb-4 text-gray-700">
+            Articles by Topic
+          </h2>
+          <div style="height: 300px">
+            <canvas id="bar-chart-canvas"></canvas>
+          </div>
+        </div>
+
+        <!-- Pie Chart -->
+        <div class="bg-white p-6 rounded-lg shadow-md">
+          <h2 class="text-xl font-semibold mb-4 text-gray-700">
+            Articles by Author
+          </h2>
+          <div style="height: 300px">
+            <canvas id="pie-chart-canvas"></canvas>
+          </div>
+        </div>
+
+        <!-- Network Graph -->
+
+        <div class="bg-white p-6 rounded-lg shadow-md">
+          <h2 class="text-xl font-semibold mb-4 text-gray-700">
+            Author-Topic Network
+          </h2>
+
+          <div id="network-graph" style="height: 400px"></div>
+        </div>
+
+        <!-- Timeline View -->
+
+        <div class="bg-white p-6 rounded-lg shadow-md">
+          <h2 class="text-xl font-semibold mb-4 text-gray-700">
+            Article Timeline
+          </h2>
+
+          <div style="height: 400px">
+            <canvas id="timeline-canvas"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Articles Table -->
+    <section class="max-w-7xl mx-auto mb-8">
+      <div class="bg-white p-6 rounded-lg shadow-md overflow-hidden">
+        <h2 class="text-2xl font-semibold mb-4 text-gray-700">Articles</h2>
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th
+                  scope="col"
+                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
+                  Title
+                </th>
+                <th
+                  scope="col"
+                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
+                  Author
+                </th>
+                <th
+                  scope="col"
+                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
+                  Date
+                </th>
+                <th
+                  scope="col"
+                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
+                  Topic
+                </th>
+              </tr>
+            </thead>
+            <tbody
+              id="articlesTableBody"
+              class="bg-white divide-y divide-gray-200"
+            >
+              <!-- Table rows will be added dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-blue-600 py-4 mt-8">
+      <div class="text-center text-white">
+        &copy; 2024 Article Metadata Explorer. All Rights Reserved.
+      </div>
+    </footer>
+
+    <script>
+      // Sample article data
+      const articles = [
+        {
+          id: 1,
+          title: "Exploring Quantum Computing",
+          author: "Alice Johnson",
+          topic: "Quantum Computing",
+          date: "2024-08-15",
+        },
+        {
+          id: 2,
+          title: "Advancements in AI Technology",
+          author: "Bob Smith",
+          topic: "Artificial Intelligence",
+          date: "2024-07-20",
+        },
+        {
+          id: 3,
+          title: "Understanding Blockchain",
+          author: "Charlie Davis",
+          topic: "Blockchain",
+          date: "2024-06-10",
+        },
+        {
+          id: 4,
+          title: "The Future of Renewable Energy",
+          author: "Dana Lee",
+          topic: "Renewable Energy",
+          date: "2024-05-25",
+        },
+        {
+          id: 5,
+          title: "Deep Learning Techniques",
+          author: "Eve Miller",
+          topic: "Machine Learning",
+          date: "2024-08-01",
+        },
+        {
+          id: 6,
+          title: "Introduction to Data Science",
+          author: "Frank White",
+          topic: "Data Science",
+          date: "2024-07-15",
+        },
+        {
+          id: 7,
+          title: "Cybersecurity Best Practices",
+          author: "Grace Clark",
+          topic: "Cybersecurity",
+          date: "2024-06-05",
+        },
+        {
+          id: 8,
+          title: "The Evolution of Internet Protocols",
+          author: "Henry Martin",
+          topic: "Networking",
+          date: "2024-08-10",
+        },
+        {
+          id: 9,
+          title: "Machine Learning in Healthcare",
+          author: "Ivy Turner",
+          topic: "Healthcare",
+          date: "2024-07-25",
+        },
+        {
+          id: 10,
+          title: "Augmented Reality and Its Applications",
+          author: "Jack Wilson",
+          topic: "Augmented Reality",
+          date: "2024-06-30",
+        },
+        {
+          id: 11,
+          title: "The Future of Quantum Networks",
+          author: "Charlie Davis",
+          topic: "Quantum Computing",
+          date: "2024-05-22",
+        },
+        {
+          id: 12,
+          title: "Machine Learning in Finance",
+          author: "Diana Wilson",
+          topic: "Machine Learning",
+          date: "2024-01-30",
+        },
+        {
+          id: 13,
+          title: "Ethical Considerations in AI",
+          author: "Alice Johnson",
+          topic: "Artificial Intelligence",
+          date: "2024-06-12",
+        },
+        {
+          id: 14,
+          title: "Quantum Algorithms for Optimization",
+          author: "Charlie Davis",
+          topic: "Quantum Computing",
+          date: "2023-11-05",
+        },
+      ];
+
+      // Initialize charts
+      let barChart = null;
+      let pieChart = null;
+
+      let timelineChart = null;
+      let network = null;
+
+      // Function to populate filter dropdowns
+      function populateFilters() {
+        const authors = [...new Set(articles.map((article) => article.author))];
+        const topics = [...new Set(articles.map((article) => article.topic))];
+
+        const authorSelect = document.getElementById("author");
+        const topicSelect = document.getElementById("topic");
+
+        // Clear existing options
+        authorSelect.innerHTML = '<option value="">All Authors</option>';
+        topicSelect.innerHTML = '<option value="">All Topics</option>';
+
+        // Populate authors
+        authors.forEach((author) => {
+          const option = document.createElement("option");
+          option.value = author;
+          option.textContent = author;
+          authorSelect.appendChild(option);
+        });
+
+        // Populate topics
+        topics.forEach((topic) => {
+          const option = document.createElement("option");
+          option.value = topic;
+          option.textContent = topic;
+          topicSelect.appendChild(option);
+        });
+      }
+
+      // Function to apply filters
+      function applyFilters() {
+        const startDate = document.getElementById("startDate").value
+          ? new Date(document.getElementById("startDate").value)
+          : null;
+        const endDate = document.getElementById("endDate").value
+          ? new Date(document.getElementById("endDate").value)
+          : null;
+        const selectedAuthor = document.getElementById("author").value;
+        const selectedTopic = document.getElementById("topic").value;
+
+        const filteredArticles = articles.filter((article) => {
+          const articleDate = new Date(article.date);
+          return (
+            (!startDate || articleDate >= startDate) &&
+            (!endDate || articleDate <= endDate) &&
+            (!selectedAuthor || article.author === selectedAuthor) &&
+            (!selectedTopic || article.topic === selectedTopic)
+          );
+        });
+
+        // Update visualizations
+        updateVisualizations(filteredArticles);
+        // Display filtered articles
+        displayArticles(filteredArticles);
+      }
+
+      // Function to reset filters
+      function resetFilters() {
+        document.getElementById("startDate").value = "";
+        document.getElementById("endDate").value = "";
+        document.getElementById("author").value = "";
+        document.getElementById("topic").value = "";
+
+        // Show all articles
+        applyFilters();
+      }
+
+      // Function to destroy existing charts
+      function destroyCharts() {
+        if (barChart) {
+          barChart.destroy();
+        }
+        if (pieChart) {
+          pieChart.destroy();
+        }
+        if (timelineChart) {
+          timelineChart.destroy();
+        }
+        if (network) {
+          network.destroy();
+        }
+      }
+
+      // Function to update charts
+      function updateVisualizations(filteredArticles) {
+        destroyCharts();
+
+        // Bar Chart: Articles by Topic
+        const topicCounts = filteredArticles.reduce((counts, article) => {
+          counts[article.topic] = (counts[article.topic] || 0) + 1;
+          return counts;
+        }, {});
+
+        const barCtx = document
+          .getElementById("bar-chart-canvas")
+          .getContext("2d");
+        barChart = new Chart(barCtx, {
+          type: "bar",
+          data: {
+            labels: Object.keys(topicCounts),
+            datasets: [
+              {
+                label: "Articles by Topic",
+                data: Object.values(topicCounts),
+                backgroundColor: "rgba(54, 162, 235, 0.6)",
+                borderColor: "rgba(54, 162, 235, 1)",
+                borderWidth: 1,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: {
+                  stepSize: 1,
+                },
+              },
+            },
+          },
+        });
+
+        // Pie Chart: Articles by Author
+        const authorCounts = filteredArticles.reduce((counts, article) => {
+          counts[article.author] = (counts[article.author] || 0) + 1;
+          return counts;
+        }, {});
+
+        const pieCtx = document
+          .getElementById("pie-chart-canvas")
+          .getContext("2d");
+        pieChart = new Chart(pieCtx, {
+          type: "pie",
+          data: {
+            labels: Object.keys(authorCounts),
+            datasets: [
+              {
+                label: "Articles by Author",
+                data: Object.values(authorCounts),
+                backgroundColor: [
+                  "rgba(255, 99, 132, 0.6)",
+                  "rgba(54, 162, 235, 0.6)",
+                  "rgba(255, 206, 86, 0.6)",
+                  "rgba(75, 192, 192, 0.6)",
+                  "rgba(153, 102, 255, 0.6)",
+                ],
+                borderColor: [
+                  "rgba(255, 99, 132, 1)",
+                  "rgba(54, 162, 235, 1)",
+                  "rgba(255, 206, 86, 1)",
+                  "rgba(75, 192, 192, 1)",
+                  "rgba(153, 102, 255, 1)",
+                ],
+                borderWidth: 1,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+          },
+        });
+
+        // Network Graph
+        const nodes = new vis.DataSet();
+        const edges = new vis.DataSet();
+
+        filteredArticles.forEach((article, index) => {
+          if (!nodes.get(article.author)) {
+            nodes.add({
+              id: article.author,
+              label: article.author,
+              group: "author",
+            });
+          }
+          if (!nodes.get(article.topic)) {
+            nodes.add({
+              id: article.topic,
+              label: article.topic,
+              group: "topic",
+            });
+          }
+          edges.add({ from: article.author, to: article.topic });
+        });
+
+        const container = document.getElementById("network-graph");
+        const data = { nodes, edges };
+        const options = {
+          groups: {
+            author: { color: { background: "rgba(255, 99, 132, 0.6)" } },
+            topic: { color: { background: "rgba(54, 162, 235, 0.6)" } },
+          },
+          physics: { enabled: true },
+        };
+        network = new vis.Network(container, data, options);
+
+        // Timeline Chart
+        const timelineCtx = document
+          .getElementById("timeline-canvas")
+          .getContext("2d");
+        timelineChart = new Chart(timelineCtx, {
+          type: "line",
+          data: {
+            datasets: [
+              {
+                label: "Articles",
+                data: filteredArticles.map((article) => ({
+                  x: article.date,
+                  y: 1,
+                })),
+                backgroundColor: "rgba(75, 192, 192, 0.6)",
+                borderColor: "rgba(75, 192, 192, 1)",
+                borderWidth: 1,
+                pointRadius: 5,
+                pointHoverRadius: 8,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              x: {
+                type: "time",
+                time: {
+                  unit: "month",
+                },
+              },
+              y: {
+                beginAtZero: true,
+                ticks: {
+                  stepSize: 1,
+                },
+              },
+            },
+          },
+        });
+      }
+
+      // Function to display filtered articles
+      function displayArticles(filteredArticles) {
+        const articlesTableBody = document.getElementById("articlesTableBody");
+        articlesTableBody.innerHTML = "";
+
+        if (filteredArticles.length === 0) {
+          const emptyRow = document.createElement("tr");
+          emptyRow.innerHTML =
+            '<td colspan="4" class="px-6 py-4 text-center text-gray-500">No articles found</td>';
+          articlesTableBody.appendChild(emptyRow);
+          return;
+        }
+
+        filteredArticles.forEach((article, index) => {
+          const row = document.createElement("tr");
+          row.className = index % 2 === 0 ? "bg-white" : "bg-gray-50";
+          row.innerHTML = `
+        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${article.title}</td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${article.author}</td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${article.date}</td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${article.topic}</td>
+      `;
+          articlesTableBody.appendChild(row);
+        });
+      }
+
+      // Initialize the page
+      document.addEventListener("DOMContentLoaded", () => {
+        populateFilters();
+        applyFilters(); // Initial load to show all data
+      });
+    </script>
+  </body>
+</html>
