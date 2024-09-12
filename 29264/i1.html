@@ -85,7 +85,7 @@
     <script>
       // Load the Google Charts library
       google.charts.load("current", { packages: ["corechart", "line"] });
-      google.charts.setOnLoadCallback(drawDashboardCharts);
+      google.charts.setOnLoadCallback(initializeDashboard);
 
       // Fetch data from the API
       async function fetchBeerData() {
@@ -93,27 +93,47 @@
         return response.json();
       }
 
-      // Draw the charts and populate the dashboard
-      async function drawDashboardCharts() {
+      // Initialize the dashboard
+      async function initializeDashboard() {
         const data = await fetchBeerData();
+        const filteredData = await filterValidImages(data);
+        drawDashboardCharts(filteredData);
+      }
 
+      // Filter beers with valid images
+      async function filterValidImages(beers) {
+        const validBeers = await Promise.all(
+          beers.map(async (beer) => {
+            try {
+              const response = await fetch(beer.image, { method: "HEAD" });
+              return response.ok ? beer : null;
+            } catch {
+              return null;
+            }
+          })
+        );
+        return validBeers.filter((beer) => beer !== null);
+      }
+
+      // Draw the charts and populate the dashboard
+      function drawDashboardCharts(filteredData) {
         // Top Beers Section
         const topBeersContainer = document.getElementById("topBeers");
-        data.sort((a, b) => b.rating.average - a.rating.average); // Sort by average rating
-        data.slice(0, 5).forEach((beer) => {
+        filteredData.sort((a, b) => b.rating.average - a.rating.average); // Sort by average rating
+        filteredData.slice(0, 5).forEach((beer) => {
           topBeersContainer.innerHTML += `
-      <div class="card flex items-center">
-        <img src="${beer.image}" alt="${beer.name}" class="w-16 h-16 object-cover mr-4">
-        <div>
-          <h5 class="text-lg font-bold">${beer.name}</h5>
-          <p><strong>Price:</strong> ${beer.price}</p>
-          <p><strong>Rating:</strong> ${beer.rating.average} (${beer.rating.reviews} reviews)</p>
-        </div>
-      </div>`;
+            <div class="card flex items-center">
+              <img src="${beer.image}" alt="${beer.name}" class="w-16 h-16 object-cover mr-4">
+              <div>
+                <h5 class="text-lg font-bold">${beer.name}</h5>
+                <p><strong>Price:</strong> ${beer.price}</p>
+                <p><strong>Rating:</strong> ${beer.rating.average} (${beer.rating.reviews} reviews)</p>
+              </div>
+            </div>`;
         });
 
         // Line Chart of Average Rating for Top 10 Beers
-        const topBeersForChart = data
+        const topBeersForChart = filteredData
           .sort((a, b) => b.rating.average - a.rating.average)
           .slice(0, 10);
         const lineChartData = [["Beer", "Average Rating"]];
@@ -138,7 +158,7 @@
         lineChart.draw(lineData, lineOptions);
 
         // Pie Chart of Beer Prices
-        const priceCounts = data.reduce((acc, beer) => {
+        const priceCounts = filteredData.reduce((acc, beer) => {
           const price = beer.price;
           acc[price] = (acc[price] || 0) + 1;
           return acc;
@@ -168,20 +188,20 @@
 
         searchInput.addEventListener("input", () => {
           const query = searchInput.value.toLowerCase();
-          const filteredBeers = data.filter((beer) =>
+          const searchFilteredBeers = filteredData.filter((beer) =>
             beer.name.toLowerCase().includes(query)
           );
-          beerDetails.innerHTML = filteredBeers
+          beerDetails.innerHTML = searchFilteredBeers
             .map(
               (beer) => `
-      <div class="card flex items-center">
-        <img src="${beer.image}" alt="${beer.name}" class="w-16 h-16 object-cover mr-4">
-        <div>
-          <h5 class="text-lg font-bold">${beer.name}</h5>
-          <p><strong>Price:</strong> ${beer.price}</p>
-          <p><strong>Rating:</strong> ${beer.rating.average} (${beer.rating.reviews} reviews)</p>
-        </div>
-      </div>`
+                <div class="card flex items-center">
+                  <img src="${beer.image}" alt="${beer.name}" class="w-16 h-16 object-cover mr-4">
+                  <div>
+                    <h5 class="text-lg font-bold">${beer.name}</h5>
+                    <p><strong>Price:</strong> ${beer.price}</p>
+                    <p><strong>Rating:</strong> ${beer.rating.average} (${beer.rating.reviews} reviews)</p>
+                  </div>
+                </div>`
             )
             .join("");
         });
