@@ -4,69 +4,116 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Historical Document Explorer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-      body {
-        font-family: Arial, sans-serif;
-        margin: 20px;
-      }
-      h1 {
-        text-align: center;
-        margin-bottom: 20px;
-      }
-      .filter-container {
-        display: flex;
-        justify-content: center;
-        margin-bottom: 20px;
-      }
-      .filter-container label {
-        margin-right: 10px;
-        font-weight: bold;
-      }
-      .filter-container select {
-        margin-right: 20px;
-        padding: 5px;
-        font-size: 16px;
-      }
-      #timeline,
-      #networkGraph,
-      #themesAnalysis {
-        width: 100%;
-        height: 300px;
-        margin: 20px 0;
-      }
-      #networkGraph {
-        height: 400px;
-      }
-      .document-info {
-        margin-top: 20px;
-      }
+      @import url("https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap");
     </style>
   </head>
-  <body>
-    <h1>Historical Document Explorer</h1>
+  <body
+    class="font-['Roboto',sans-serif] bg-gray-100 flex flex-col min-h-screen"
+  >
+    <header class="bg-blue-600 text-white p-4">
+      <h1 class="text-3xl font-bold text-center">
+        Historical Document Explorer
+      </h1>
+    </header>
 
-    <!-- Filters -->
-    <div class="filter-container">
-      <label for="themeFilter">Filter by Theme:</label>
-      <select id="themeFilter">
-        <option value="">All Themes</option>
-      </select>
+    <main class="flex-grow container mx-auto px-4 py-8">
+      <!-- Filters -->
+      <div class="flex justify-center space-x-4 mb-8">
+        <div>
+          <label
+            for="themeFilter"
+            class="block text-sm font-medium text-gray-700 mb-1"
+            >Filter by Theme:</label
+          >
+          <select
+            id="themeFilter"
+            class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+          >
+            <option value="">All Themes</option>
+          </select>
+        </div>
+        <div>
+          <label
+            for="authorFilter"
+            class="block text-sm font-medium text-gray-700 mb-1"
+            >Filter by Author:</label
+          >
+          <select
+            id="authorFilter"
+            class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+          >
+            <option value="">All Authors</option>
+          </select>
+        </div>
+      </div>
 
-      <label for="authorFilter">Filter by Author:</label>
-      <select id="authorFilter">
-        <option value="">All Authors</option>
-      </select>
-    </div>
+      <!-- Data Table -->
+      <div class="mb-8 overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th
+                scope="col"
+                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              >
+                Title
+              </th>
+              <th
+                scope="col"
+                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              >
+                Author
+              </th>
+              <th
+                scope="col"
+                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              >
+                Date
+              </th>
+              <th
+                scope="col"
+                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              >
+                Themes
+              </th>
+            </tr>
+          </thead>
+          <tbody
+            id="documentTableBody"
+            class="bg-white divide-y divide-gray-200"
+          >
+            <!-- Table rows will be dynamically populated here -->
+          </tbody>
+        </table>
+      </div>
 
-    <h2>Documents Published Over Time</h2>
-    <canvas id="timeline"></canvas>
+      <h2 class="text-2xl font-bold mb-4">Documents Published Over Time</h2>
+      <canvas id="timeline" class="w-full h-64 mb-8"></canvas>
 
-    <h2>Distribution of Themes in Documents</h2>
-    <canvas id="themesAnalysis"></canvas>
+      <h2 class="text-2xl font-bold mb-4">
+        Distribution of Themes in Documents
+      </h2>
+      <canvas id="themesAnalysis" class="w-full h-64 mb-8"></canvas>
 
-    <h2>Document Relationships Network</h2>
-    <div id="networkGraph"></div>
-    <div id="documentInfo" class="document-info"></div>
+      <h2 class="text-2xl font-bold mb-4">Document Relationships Network</h2>
+      <div id="networkGraph" class="w-full h-96 mb-8"></div>
+      <div
+        id="documentInfo"
+        class="bg-white shadow overflow-hidden sm:rounded-lg p-4"
+      >
+        <p class="text-gray-500 text-center">
+          Click on a node in the network graph to view document details.
+        </p>
+      </div>
+    </main>
+
+    <footer class="bg-gray-800 text-white p-4 mt-8">
+      <p class="text-center">
+        &copy; 2024 Historical Document Explorer. All rights reserved.
+      </p>
+    </footer>
 
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -111,7 +158,7 @@
           historical_figures: ["Friedrich Ebert"],
           summary:
             "The Weimar Constitution was the constitution that governed Germany during the Weimar Republic.",
-          related_documents: [1],
+          related_documents: [1, 5],
         },
         {
           id: 4,
@@ -122,7 +169,7 @@
           historical_figures: ["Franklin D. Roosevelt", "Winston Churchill"],
           summary:
             "The Atlantic Charter was a pivotal policy statement issued during World War II, outlining the Allied goals for the post-war world.",
-          related_documents: [2, 5],
+          related_documents: [2, 5, 6],
         },
         {
           id: 5,
@@ -136,13 +183,179 @@
           ],
           historical_figures: ["Harry S. Truman"],
           summary:
-            "The United Nations Charter is the foundational treaty of the United Nations, an international organization established to promote peace and security.",
-          related_documents: [4],
+            "The United Nations Charter is the foundational treaty of the United Nations, established to promote peace and security.",
+          related_documents: [3, 4, 6, 7],
+        },
+        {
+          id: 6,
+          title: "The Marshall Plan",
+          author: "George Marshall",
+          date: "1948-04-03",
+          themes: ["Economic Aid", "Reconstruction", "World War II"],
+          historical_figures: ["George Marshall"],
+          summary:
+            "The Marshall Plan was an American initiative to aid Western Europe after World War II.",
+          related_documents: [4, 5, 7, 8],
+        },
+        {
+          id: 7,
+          title: "The NATO Treaty",
+          author: "Various",
+          date: "1949-04-04",
+          themes: ["International Relations", "Military Alliances"],
+          historical_figures: ["Harry S. Truman", "Winston Churchill"],
+          summary:
+            "The NATO Treaty established the North Atlantic Treaty Organization for collective defense.",
+          related_documents: [5, 6, 8, 9],
+        },
+        {
+          id: 8,
+          title: "The Korean War Armistice Agreement",
+          author: "Various",
+          date: "1953-07-27",
+          themes: ["Korean War", "Ceasefire", "Cold War"],
+          historical_figures: ["Harry S. Truman", "Kim Il-sung"],
+          summary:
+            "The Korean War Armistice Agreement ended active hostilities in the Korean War.",
+          related_documents: [6, 7, 9, 10],
+        },
+        {
+          id: 9,
+          title: "The Warsaw Pact",
+          author: "Soviet Union",
+          date: "1955-05-14",
+          themes: ["Cold War", "Military Alliances"],
+          historical_figures: ["Nikita Khrushchev"],
+          summary:
+            "The Warsaw Pact was a collective defense treaty among the Soviet Union and its satellite states.",
+          related_documents: [7, 8, 10, 11],
+        },
+        {
+          id: 10,
+          title: "The Cuban Missile Crisis",
+          author: "John F. Kennedy",
+          date: "1962-10-16",
+          themes: ["Cold War", "Nuclear Weapons"],
+          historical_figures: ["John F. Kennedy", "Nikita Khrushchev"],
+          summary:
+            "The Cuban Missile Crisis was a major confrontation during the Cold War between the US and the Soviet Union.",
+          related_documents: [8, 9, 11, 12],
+        },
+        {
+          id: 11,
+          title: "The Vietnam War Peace Agreement",
+          author: "Various",
+          date: "1973-01-27",
+          themes: ["Vietnam War", "Peace Treaty"],
+          historical_figures: ["Richard Nixon"],
+          summary:
+            "The Vietnam War Peace Agreement ended active fighting between the US and North Vietnam.",
+          related_documents: [9, 10, 12, 13],
+        },
+        {
+          id: 12,
+          title: "The Helsinki Accords",
+          author: "Various",
+          date: "1975-08-01",
+          themes: ["Cold War", "Human Rights"],
+          historical_figures: ["Gerald Ford", "Leonid Brezhnev"],
+          summary:
+            "The Helsinki Accords were an agreement aimed at improving relations between the Communist bloc and the West.",
+          related_documents: [10, 11, 13, 14],
+        },
+        {
+          id: 13,
+          title: "The Camp David Accords",
+          author: "Jimmy Carter",
+          date: "1978-09-17",
+          themes: ["Middle East Peace", "Israel", "Egypt"],
+          historical_figures: ["Jimmy Carter", "Anwar Sadat", "Menachem Begin"],
+          summary:
+            "The Camp David Accords were a peace agreement between Israel and Egypt brokered by the US.",
+          related_documents: [11, 12, 14, 15],
+        },
+        {
+          id: 14,
+          title: "The Strategic Arms Limitation Talks (SALT)",
+          author: "Various",
+          date: "1979-06-18",
+          themes: ["Arms Control", "Cold War"],
+          historical_figures: ["Jimmy Carter", "Leonid Brezhnev"],
+          summary:
+            "SALT I and SALT II were negotiations between the US and the Soviet Union to limit strategic nuclear weapons.",
+          related_documents: [12, 13, 15, 16],
+        },
+        {
+          id: 15,
+          title: "The Iran Hostage Crisis Resolution",
+          author: "Jimmy Carter",
+          date: "1981-01-20",
+          themes: ["Middle East", "Diplomacy"],
+          historical_figures: ["Jimmy Carter", "Ayatollah Khomeini"],
+          summary:
+            "The Iran Hostage Crisis was resolved in 1981 when 52 American diplomats were released after 444 days.",
+          related_documents: [13, 14, 16, 17],
+        },
+        {
+          id: 16,
+          title: "The INF Treaty",
+          author: "Ronald Reagan",
+          date: "1987-12-08",
+          themes: ["Arms Control", "Cold War"],
+          historical_figures: ["Ronald Reagan", "Mikhail Gorbachev"],
+          summary:
+            "The INF Treaty eliminated intermediate-range nuclear missiles from Europe.",
+          related_documents: [14, 15, 17, 18],
+        },
+        {
+          id: 17,
+          title: "The Fall of the Berlin Wall",
+          author: "Various",
+          date: "1989-11-09",
+          themes: ["Cold War", "Reunification of Germany"],
+          historical_figures: ["Mikhail Gorbachev", "Ronald Reagan"],
+          summary:
+            "The fall of the Berlin Wall signaled the end of the Cold War and the beginning of German reunification.",
+          related_documents: [15, 16, 18, 19],
+        },
+        {
+          id: 18,
+          title: "The Maastricht Treaty",
+          author: "European Union",
+          date: "1992-11-07",
+          themes: ["European Union", "Economic Integration"],
+          historical_figures: ["Various"],
+          summary:
+            "The Maastricht Treaty led to the formation of the European Union and a single European currency.",
+          related_documents: [16, 17, 19, 20],
+        },
+        {
+          id: 19,
+          title: "The Oslo Accords",
+          author: "Yitzhak Rabin",
+          date: "1993-09-13",
+          themes: ["Middle East Peace", "Israel", "Palestine"],
+          historical_figures: ["Yitzhak Rabin", "Yasser Arafat"],
+          summary:
+            "The Oslo Accords were a peace agreement between Israel and the Palestine Liberation Organization.",
+          related_documents: [17, 18, 20],
+        },
+        {
+          id: 20,
+          title: "The Kyoto Protocol",
+          author: "United Nations",
+          date: "1997-12-11",
+          themes: ["Climate Change", "Environmental Policy"],
+          historical_figures: ["Various"],
+          summary:
+            "The Kyoto Protocol is an international treaty aimed at reducing greenhouse gas emissions.",
+          related_documents: [18, 19],
         },
       ];
 
       const themeFilter = document.getElementById("themeFilter");
       const authorFilter = document.getElementById("authorFilter");
+      const documentTableBody = document.getElementById("documentTableBody");
 
       let timelineChart = null;
       let themesChart = null;
@@ -191,9 +404,34 @@
       // Re-render visualizations based on filtered data
       function updateVisualizations() {
         const filteredDocuments = filterDocuments();
+        renderTable(filteredDocuments);
         renderTimeline(filteredDocuments);
         renderNetworkGraph(filteredDocuments);
         renderThemesAnalysis(filteredDocuments);
+      }
+
+      // Render data table
+      function renderTable(docs) {
+        documentTableBody.innerHTML = "";
+        docs.forEach((doc, index) => {
+          const row = document.createElement("tr");
+          row.classList.add(index % 2 === 0 ? "bg-white" : "bg-gray-50");
+          row.innerHTML = `
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${
+              doc.title
+            }</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${
+              doc.author
+            }</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${
+              doc.date
+            }</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${doc.themes.join(
+              ", "
+            )}</td>
+          `;
+          documentTableBody.appendChild(row);
+        });
       }
 
       // Time-based Visualization (Timeline)
@@ -206,9 +444,11 @@
             {
               label: "Documents Timeline",
               data: labels.map((date) => new Date(date).getTime()),
-              borderColor: "rgba(75, 192, 192, 1)",
-              backgroundColor: "rgba(75, 192, 192, 0.2)",
-              borderWidth: 1,
+              borderColor: "rgba(59, 130, 246, 1)",
+              backgroundColor: "rgba(59, 130, 246, 0.2)",
+              borderWidth: 2,
+              pointRadius: 5,
+              pointHoverRadius: 8,
             },
           ],
         };
@@ -245,7 +485,7 @@
           .select("#networkGraph")
           .append("svg")
           .attr("width", "100%")
-          .attr("height", 300);
+          .attr("height", "100%");
 
         const links = [];
         const nodes = docs.map((doc) => {
@@ -264,7 +504,13 @@
             d3.forceLink(links).id((d) => d.id)
           )
           .force("charge", d3.forceManyBody().strength(-200))
-          .force("center", d3.forceCenter(svg.node().clientWidth / 2, 150));
+          .force(
+            "center",
+            d3.forceCenter(
+              svg.node().clientWidth / 2,
+              svg.node().clientHeight / 2
+            )
+          );
 
         const link = svg
           .append("g")
@@ -282,7 +528,7 @@
           .data(nodes)
           .join("circle")
           .attr("r", 6)
-          .attr("fill", "steelblue")
+          .attr("fill", "rgba(59, 130, 246, 0.8)")
           .call(drag(simulation));
 
         node.append("title").text((d) => d.title);
@@ -317,14 +563,18 @@
               label: "Theme Analysis",
               data: Object.values(themesCount),
               backgroundColor: [
-                "rgba(255, 99, 132, 0.2)",
-                "rgba(54, 162, 235, 0.2)",
-                "rgba(255, 206, 86, 0.2)",
+                "rgba(59, 130, 246, 0.6)",
+                "rgba(16, 185, 129, 0.6)",
+                "rgba(245, 158, 11, 0.6)",
+                "rgba(239, 68, 68, 0.6)",
+                "rgba(139, 92, 246, 0.6)",
               ],
               borderColor: [
-                "rgba(255, 99, 132, 1)",
-                "rgba(54, 162, 235, 1)",
-                "rgba(255, 206, 86, 1)",
+                "rgba(59, 130, 246, 1)",
+                "rgba(16, 185, 129, 1)",
+                "rgba(245, 158, 11, 1)",
+                "rgba(239, 68, 68, 1)",
+                "rgba(139, 92, 246, 1)",
               ],
               borderWidth: 1,
             },
@@ -354,15 +604,23 @@
         const doc = documents.find((d) => d.id === docId);
         const infoDiv = document.getElementById("documentInfo");
         infoDiv.innerHTML = `
-                <h2>${doc.title}</h2>
-                <p><strong>Date:</strong> ${doc.date}</p>
-                <p><strong>Author:</strong> ${doc.author}</p>
-                <p><strong>Themes:</strong> ${doc.themes.join(", ")}</p>
-                <p><strong>Historical Figures:</strong> ${doc.historical_figures.join(
-                  ", "
-                )}</p>
-                <p><strong>Summary:</strong> ${doc.summary}</p>
-            `;
+          <h2 class="text-2xl font-bold mb-2">${doc.title}</h2>
+          <p class="mb-1"><strong class="font-semibold">Date: strong>Date:</strong> ${
+            doc.date
+          }</p>
+          <p class="mb-1"><strong class="font-semibold">Author:</strong> ${
+            doc.author
+          }</p>
+          <p class="mb-1"><strong class="font-semibold">Themes:</strong> ${doc.themes.join(
+            ", "
+          )}</p>
+          <p class="mb-1"><strong class="font-semibold">Historical Figures:</strong> ${doc.historical_figures.join(
+            ", "
+          )}</p>
+          <p class="mb-1"><strong class="font-semibold">Summary:</strong> ${
+            doc.summary
+          }</p>
+        `;
       }
 
       // Event listeners for filters
