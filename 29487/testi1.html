@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en" class="bg-gray-900">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NASA Near-Earth Asteroid Visualization</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap");
+    </style>
+  </head>
+  <body class="font-['Roboto',sans-serif] text-gray-100 min-h-screen">
+    <header class="bg-black py-4">
+      <div class="container mx-auto px-4">
+        <h1 class="text-3xl font-bold text-white">
+          NASA Near-Earth Asteroid Visualization
+        </h1>
+      </div>
+    </header>
+
+    <main class="container mx-auto px-4 py-8">
+      <div
+        id="loader"
+        class="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-75 z-50 hidden"
+      >
+        <div
+          class="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-blue-500"
+        ></div>
+      </div>
+
+      <div class="mb-8 bg-gray-800 rounded-lg shadow-lg p-6">
+        <h2 class="text-2xl font-bold mb-4">Controls</h2>
+        <div class="flex flex-wrap gap-4">
+          <div class="flex-1">
+            <label for="size-filter-min" class="block mb-2"
+              >Min Size (km):</label
+            >
+            <input
+              type="number"
+              id="size-filter-min"
+              min="0"
+              step="0.1"
+              value="0"
+              class="w-full px-3 py-2 bg-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div class="flex-1">
+            <label for="size-filter-max" class="block mb-2"
+              >Max Size (km):</label
+            >
+            <input
+              type="number"
+              id="size-filter-max"
+              min="0"
+              step="0.1"
+              value="100"
+              class="w-full px-3 py-2 bg-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div class="flex-1">
+            <label for="sort-select" class="block mb-2">Sort by:</label>
+            <select
+              id="sort-select"
+              class="w-full px-3 py-2 bg-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="size">Size</option>
+              <option value="distance">Approach Distance</option>
+              <option value="date">Discovery Date</option>
+            </select>
+          </div>
+          <div class="flex-1 flex items-end">
+            <button
+              id="apply-filter"
+              class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              Apply Filters
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div class="bg-gray-800 rounded-lg shadow-lg p-6">
+          <h2 class="text-2xl font-bold mb-4">Size vs. Approach Distance</h2>
+          <div id="scatter-plot" class="w-full h-96"></div>
+        </div>
+        <div class="bg-gray-800 rounded-lg shadow-lg p-6">
+          <h2 class="text-2xl font-bold mb-4">Discovery Timeline</h2>
+          <div id="timeline" class="w-full h-96"></div>
+        </div>
+        <div class="bg-gray-800 rounded-lg shadow-lg p-6">
+          <h2 class="text-2xl font-bold mb-4">Orbit Type Distribution</h2>
+          <div id="pie-chart" class="w-full h-96"></div>
+        </div>
+        <div class="bg-gray-800 rounded-lg shadow-lg p-6">
+          <h2 class="text-2xl font-bold mb-4">Asteroid Details</h2>
+          <div id="asteroid-details" class="text-lg bg-gray-700 p-4 rounded-lg">
+            <p class="text-sm text-gray-400 mt-2">
+              Select any node to see details
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-8 bg-gray-800 rounded-lg shadow-lg p-6">
+        <h2 class="text-2xl font-bold mb-4">Asteroid Data Table</h2>
+        <div class="overflow-x-auto">
+          <table class="w-full table-auto">
+            <thead>
+              <tr class="bg-gray-700">
+                <th class="px-4 py-2">Name</th>
+                <th class="px-4 py-2">Size (km)</th>
+                <th class="px-4 py-2">Approach Distance (km)</th>
+                <th class="px-4 py-2">Discovery Date</th>
+                <th class="px-4 py-2">Orbit Class</th>
+              </tr>
+            </thead>
+            <tbody id="asteroid-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+
+    <footer class="bg-black py-4 mt-8">
+      <div class="container mx-auto px-4 text-center">
+        <p>Data provided by NASA's Near Earth Object Web Service</p>
+      </div>
+    </footer>
+
+    <script>
+      const API_URL =
+        "https://api.nasa.gov/neo/rest/v1/neo/browse?api_key=DEMO_KEY";
+
+      let asteroidData = [];
+
+      // Fetch data from NASA NeoWs API
+      async function fetchAsteroidData() {
+        try {
+          showLoader();
+          const response = await fetch(API_URL);
+          const data = await response.json();
+          hideLoader();
+          return processAsteroidData(data.near_earth_objects);
+        } catch (error) {
+          console.error("Error fetching asteroid data:", error);
+          hideLoader();
+        }
+      }
+
+      // Show loader
+      function showLoader() {
+        document.getElementById("loader").classList.remove("hidden");
+      }
+
+      // Hide loader
+      function hideLoader() {
+        document.getElementById("loader").classList.add("hidden");
+      }
+
+      // Process and format asteroid data
+      function processAsteroidData(asteroids) {
+        return asteroids.map((asteroid) => ({
+          id: asteroid.id,
+          name: asteroid.name,
+          size: asteroid.estimated_diameter.kilometers.estimated_diameter_max,
+          distance: asteroid.close_approach_data[0]?.miss_distance.kilometers,
+          date: new Date(asteroid.orbital_data.first_observation_date),
+          orbitClass: asteroid.orbital_data.orbit_class.orbit_class_type,
+        }));
+      }
+
+      // Create scatter plot
+      function createScatterPlot(data) {
+        const margin = { top: 20, right: 20, bottom: 50, left: 50 };
+        const width = 560 - margin.left - margin.right;
+        const height = 380 - margin.top - margin.bottom;
+
+        d3.select("#scatter-plot").selectAll("*").remove();
+
+        const svg = d3
+          .select("#scatter-plot")
+          .append("svg")
+          .attr("width", "100%")
+          .attr("height", "100%")
+          .attr(
+            "viewBox",
+            `0 0 ${width + margin.left + margin.right} ${
+              height + margin.top + margin.bottom
+            }`
+          )
+          .append("g")
+          .attr("transform", `translate(${margin.left},${margin.top})`);
+
+        const x = d3
+          .scaleLinear()
+          .domain([0, d3.max(data, (d) => d.size)])
+          .range([0, width]);
+
+        const y = d3
+          .scaleLog()
+          .domain([
+            d3.min(data, (d) => d.distance) || 1,
+            d3.max(data, (d) => d.distance),
+          ])
+          .range([height, 0]);
+
+        svg
+          .append("g")
+          .attr("transform", `translate(0,${height})`)
+          .call(d3.axisBottom(x))
+          .attr("color", "white");
+
+        svg.append("g").call(d3.axisLeft(y)).attr("color", "white");
+
+        svg
+          .selectAll("circle")
+          .data(data)
+          .enter()
+          .append("circle")
+          .attr("cx", (d) => x(d.size))
+          .attr("cy", (d) => y(d.distance))
+          .attr("r", 5)
+          .attr("fill", "rgba(0, 255, 255, 0.7)")
+          .on("click", (event, d) => showAsteroidDetails(d));
+
+        svg
+          .append("text")
+          .attr("x", width / 2)
+          .attr("y", height + margin.bottom - 10)
+          .style("text-anchor", "middle")
+          .style("fill", "white")
+          .text("Asteroid Size (km)");
+
+        svg
+          .append("text")
+          .attr("transform", "rotate(-90)")
+          .attr("x", -height / 2)
+          .attr("y", -margin.left + 15)
+          .style("text-anchor", "middle")
+          .style("fill", "white")
+          .text("Closest Approach Distance (km)");
+      }
+
+      // Create timeline
+      function createTimeline(data) {
+        const margin = { top: 20, right: 20, bottom: 50, left: 50 };
+        const width = 560 - margin.left - margin.right;
+        const height = 380 - margin.top - margin.bottom;
+
+        d3.select("#timeline").selectAll("*").remove();
+
+        const svg = d3
+          .select("#timeline")
+          .append("svg")
+          .attr("width", "100%")
+          .attr("height", "100%")
+          .attr(
+            "viewBox",
+            `0 0 ${width + margin.left + margin.right} ${
+              height + margin.top + margin.bottom
+            }`
+          )
+          .append("g")
+          .attr("transform", `translate(${margin.left},${margin.top})`);
+
+        const x = d3
+          .scaleTime()
+          .domain(d3.extent(data, (d) => d.date))
+          .range([0, width]);
+
+        const y = d3
+          .scaleLinear()
+          .domain([0, d3.max(data, (d) => d.size)])
+          .range([height, 0]);
+
+        svg
+          .append("g")
+          .attr("transform", `translate(0,${height})`)
+          .call(d3.axisBottom(x))
+          .attr("color", "white");
+
+        svg.append("g").call(d3.axisLeft(y)).attr("color", "white");
+
+        svg
+          .selectAll("circle")
+          .data(data)
+          .enter()
+          .append("circle")
+          .attr("cx", (d) => x(d.date))
+          .attr("cy", (d) => y(d.size))
+          .attr("r", 5)
+          .attr("fill", "rgba(255, 165, 0, 0.7)")
+          .on("click", (event, d) => showAsteroidDetails(d));
+
+        svg
+          .append("text")
+          .attr("x", width / 2)
+          .attr("y", height + margin.bottom - 10)
+          .style("text-anchor", "middle")
+          .style("fill", "white")
+          .text("Discovery Date");
+
+        svg
+          .append("text")
+          .attr("transform", "rotate(-90)")
+          .attr("x", -height / 2)
+          .attr("y", -margin.left + 15)
+          .style("text-anchor", "middle")
+          .style("fill", "white")
+          .text("Asteroid Size (km)");
+      }
+
+      // Create pie chart
+      function createPieChart(data) {
+        const width = 560;
+        const height = 380;
+        const radius = Math.min(width, height) / 2;
+
+        d3.select("#pie-chart").selectAll("*").remove();
+
+        const svg = d3
+          .select("#pie-chart")
+          .append("svg")
+          .attr("width", "100%")
+          .attr("height", "100%")
+          .attr("viewBox", `0 0 ${width} ${height}`)
+          .append("g")
+          .attr("transform", `translate(${width / 2},${height / 2})`);
+
+        const orbitTypes = d3.group(data, (d) => d.orbitClass);
+        const pieData = Array.from(orbitTypes, ([key, value]) => ({
+          key,
+          value: value.length,
+        }));
+
+        const color = d3
+          .scaleOrdinal()
+          .domain(pieData.map((d) => d.key))
+          .range(d3.schemeSet2);
+
+        const pie = d3.pie().value((d) => d.value);
+
+        const arc = d3.arc().innerRadius(0).outerRadius(radius);
+
+        const arcs = svg
+          .selectAll("arc")
+          .data(pie(pieData))
+          .enter()
+          .append("g");
+
+        arcs
+          .append("path")
+          .attr("d", arc)
+          .attr("fill", (d) => color(d.data.key))
+          .attr("stroke", "white")
+          .style("stroke-width", "2px");
+
+        arcs
+          .append("text")
+          .attr("transform", (d) => `translate(${arc.centroid(d)})`)
+          .attr("text-anchor", "middle")
+          .style("fill", "white")
+          .style("font-size", "12px")
+          .text((d) => `${d.data.key}: ${d.data.value}`);
+
+        svg
+          .append("text")
+          .attr("x", 0)
+          .attr("y", -height / 2 + 20)
+          .attr("text-anchor", "middle")
+          .style("font-size", "16px")
+          .style("fill", "white");
+      }
+
+      // Show asteroid details
+      function showAsteroidDetails(asteroid) {
+        const detailsDiv = document.getElementById("asteroid-details");
+        detailsDiv.innerHTML = `
+            <h3 class="text-xl font-bold mb-4">${asteroid.name}</h3>
+            <div class="grid grid-cols-2 gap-4">
+              <div class="bg-gray-600 p-3 rounded-lg">
+                <p class="font-bold mb-1">Size</p>
+                <p>${asteroid.size.toFixed(2)} km</p>
+              </div>
+              <div class="bg-gray-600 p-3 rounded-lg">
+                <p class="font-bold mb-1">Closest Approach</p>
+                <p>${Number(asteroid.distance).toFixed(2)} km</p>
+              </div>
+              <div class="bg-gray-600 p-3 rounded-lg">
+                <p class="font-bold mb-1">Discovery Date</p>
+                <p>${asteroid.date.toDateString()}</p>
+              </div>
+              <div class="bg-gray-600 p-3 rounded-lg">
+                <p class="font-bold mb-1">Orbit Class</p>
+                <p>${asteroid.orbitClass}</p>
+              </div>
+            </div>
+        `;
+      }
+
+      // Filter asteroids by size
+      function filterAsteroids() {
+        const minSize = parseFloat(
+          document.getElementById("size-filter-min").value
+        );
+        const maxSize = parseFloat(
+          document.getElementById("size-filter-max").value
+        );
+        const filteredData = asteroidData.filter(
+          (d) => d.size >= minSize && d.size <= maxSize
+        );
+        updateVisualizations(filteredData);
+      }
+
+      // Sort asteroids
+      function sortAsteroids() {
+        const sortBy = document.getElementById("sort-select").value;
+        asteroidData.sort((a, b) => {
+          if (sortBy === "size") return a.size - b.size;
+          if (sortBy === "distance") return a.distance - b.distance;
+          if (sortBy === "date") return a.date - b.date;
+        });
+        updateVisualizations(asteroidData);
+      }
+
+      // Update visualizations
+      function updateVisualizations(data) {
+        createScatterPlot(data);
+        createTimeline(data);
+        createPieChart(data);
+        updateAsteroidTable(data);
+      }
+
+      // Update asteroid table
+      function updateAsteroidTable(data) {
+        const tableBody = document.getElementById("asteroid-table-body");
+        tableBody.innerHTML = "";
+        data.forEach((asteroid, index) => {
+          const row = document.createElement("tr");
+          row.classList.add(index % 2 === 0 ? "bg-gray-800" : "bg-gray-700");
+          row.innerHTML = `
+            <td class="px-4 py-2">${asteroid.name}</td>
+            <td class="px-4 py-2">${asteroid.size.toFixed(2)}</td>
+            <td class="px-4 py-2">${Number(asteroid.distance).toFixed(2)}</td>
+            <td class="px-4 py-2">${asteroid.date.toDateString()}</td>
+            <td class="px-4 py-2">${asteroid.orbitClass}</td>
+          `;
+          tableBody.appendChild(row);
+        });
+      }
+
+      // Initialize application
+      async function init() {
+        asteroidData = await fetchAsteroidData();
+        createScatterPlot(asteroidData);
+        createTimeline(asteroidData);
+        createPieChart(asteroidData);
+        updateAsteroidTable(asteroidData);
+
+        document
+          .getElementById("apply-filter")
+          .addEventListener("click", filterAsteroids);
+        document
+          .getElementById("sort-select")
+          .addEventListener("change", sortAsteroids);
+      }
+      init();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Asteroid Visualization</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3-fetch@3"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+      }
+      .loader {
+        border: 16px solid #f3f3f3;
+        border-top: 16px solid #3498db;
+        border-radius: 50%;
+        width: 60px;
+        height: 60px;
+        animation: spin 2s linear infinite;
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        margin-top: -30px;
+        margin-left: -30px;
+      }
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+      .filter-sort {
+        margin: 10px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="loader" id="loader"></div>
+    <div id="controls">
+      <div class="filter-sort">
+        <label>Filter by Size (km): </label>
+        <input type="range" min="0" max="100" value="100" id="sizeFilter" />
+        <span id="sizeValue">0 - 100 km</span>
+      </div>
+      <div class="filter-sort">
+        <label>Sort by: </label>
+        <select id="sortBy">
+          <option value="discovery_date">Discovery Date</option>
+          <option value="close_approach_date">Approach Distance</option>
+        </select>
+      </div>
+    </div>
+    <div id="visualizations">
+      <svg id="scatterPlot" width="800" height="400"></svg>
+      <svg id="timeline" width="800" height="200"></svg>
+      <svg id="pieChart" width="400" height="400"></svg>
+    </div>
+    <table id="asteroidTable" style="width: 100%"></table>
+
+    <script>
+      // Show loader when fetching data
+      document.getElementById("loader").style.display = "block";
+
+      const apiUrl =
+        "https://api.nasa.gov/neo/rest/v1/neo/browse?api_key=DEMO_KEY";
+
+      // Fetch data
+      d3.json(apiUrl)
+        .then((data) => {
+          document.getElementById("loader").style.display = "none";
+          let asteroids = data.near_earth_objects;
+
+          // Data processing
+          asteroids.forEach((asteroid) => {
+            asteroid.estimated_diameter_km =
+              asteroid.estimated_diameter.kilometers.estimated_diameter_max;
+            asteroid.close_approach_date = asteroid.close_approach_data[0]
+              ? asteroid.close_approach_data[0].close_approach_date
+              : "N/A";
+          });
+
+          // Visualization functions
+          function updateVisualizations() {
+            const sizeThreshold = document.getElementById("sizeFilter").value;
+            const sortBy = document.getElementById("sortBy").value;
+            let filteredAsteroids = asteroids.filter(
+              (a) => a.estimated_diameter_km <= sizeThreshold
+            );
+            filteredAsteroids.sort((a, b) =>
+              d3.descending(a[sortBy], b[sortBy])
+            );
+
+            drawScatterPlot(filteredAsteroids);
+            drawTimeline(filteredAsteroids);
+            drawPieChart(filteredAsteroids);
+            updateTable(filteredAsteroids);
+          }
+
+          function drawScatterPlot(data) {
+            const svg = d3.select("#scatterPlot");
+            svg.selectAll("*").remove();
+            const margin = { top: 20, right: 20, bottom: 30, left: 50 },
+              width = +svg.attr("width") - margin.left - margin.right,
+              height = +svg.attr("height") - margin.top - margin.bottom;
+
+            const x = d3
+              .scaleLinear()
+              .range([0, width])
+              .domain([0, d3.max(data, (d) => d.estimated_diameter_km)]);
+            const y = d3
+              .scaleTime()
+              .range([height, 0])
+              .domain(d3.extent(data, (d) => new Date(d.close_approach_date)));
+
+            const g = svg
+              .append("g")
+              .attr("transform", `translate(${margin.left},${margin.top})`);
+
+            g.append("g")
+              .attr("transform", `translate(0,${height})`)
+              .call(d3.axisBottom(x));
+
+            g.append("g").call(d3.axisLeft(y));
+
+            g.selectAll("circle")
+              .data(data)
+              .enter()
+              .append("circle")
+              .attr("cx", (d) => x(d.estimated_diameter_km))
+              .attr("cy", (d) => y(new Date(d.close_approach_date)))
+              .attr("r", 5)
+              .style("fill", "steelblue")
+              .on("click", function (event, d) {
+                alert(
+                  `Asteroid: ${d.name}\nSize: ${d.estimated_diameter_km} km`
+                );
+              });
+          }
+
+          function drawTimeline(data) {
+            const svg = d3.select("#timeline");
+            svg.selectAll("*").remove();
+            // Implementation for timeline would be similar to scatter but with time on x-axis
+          }
+
+          function drawPieChart(data) {
+            const svg = d3.select("#pieChart");
+            svg.selectAll("*").remove();
+            // Here you would categorize asteroids by orbit type and create a pie chart
+          }
+
+          function updateTable(data) {
+            const table = d3.select("#asteroidTable");
+            table.html("");
+            const thead = table
+              .append("thead")
+              .append("tr")
+              .selectAll("th")
+              .data(["Name", "Size (km)", "Discovery Date", "Approach Date"])
+              .enter()
+              .append("th")
+              .text((d) => d);
+
+            const rows = table
+              .append("tbody")
+              .selectAll("tr")
+              .data(data)
+              .enter()
+              .append("tr");
+
+            rows
+              .selectAll("td")
+              .data((d) => [
+                d.name,
+                d.estimated_diameter_km,
+                d.discovery_date,
+                d.close_approach_date,
+              ])
+              .enter()
+              .append("td")
+              .text((d) => d);
+          }
+
+          document.getElementById("sizeFilter").oninput = function () {
+            document.getElementById(
+              "sizeValue"
+            ).textContent = `0 - ${this.value} km`;
+            updateVisualizations();
+          };
+
+          document.getElementById("sortBy").onchange = updateVisualizations;
+
+          updateVisualizations();
+        })
+        .catch((error) => {
+          document.getElementById("loader").style.display = "none";
+          console.error("Error fetching the data:", error);
+        });
+    </script>
+  </body>
+</html>
