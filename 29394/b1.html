@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Wikipedia Visualizer</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bulma@0.9.3/css/bulma.min.css"
+    />
+    <style>
+      #visualization {
+        height: 60vh;
+      }
+      #wordCloud,
+      #articleStructure,
+      #entities,
+      #relatedTopics {
+        height: 300px;
+        margin: 10px;
+      }
+      #sidebar {
+        height: 100%;
+        overflow-y: auto;
+      }
+      .modal-content {
+        width: 80%;
+        max-width: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container mt-5">
+      <div class="columns">
+        <div class="column is-three-quarters">
+          <input
+            class="input"
+            type="text"
+            id="searchTopic"
+            placeholder="Search for a topic or select below"
+          />
+          <button class="button" onclick="fetchWikiData()">Search</button>
+          <div id="suggestions" class="dropdown">
+            <div class="dropdown-content">
+              <a href="#" onclick="fetchWikiData('JavaScript')">JavaScript</a>
+              <a href="#" onclick="fetchWikiData('Artificial Intelligence')"
+                >AI</a
+              >
+            </div>
+          </div>
+          <div id="visualization" class="mt-4">
+            <div id="wordCloud"></div>
+            <div id="articleStructure"></div>
+            <div id="entities"></div>
+            <div id="relatedTopics"></div>
+          </div>
+        </div>
+        <div class="column">
+          <div id="sidebar" class="panel">
+            <p class="panel-heading">Article Text</p>
+            <div id="articleText" class="panel-block"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal" id="helpModal">
+      <div class="modal-background"></div>
+      <div class="modal-content">
+        <div class="box">
+          <h2 class="title">How to Use</h2>
+          <p>
+            Enter a topic or select from suggestions to visualize Wikipedia
+            data.
+          </p>
+        </div>
+      </div>
+      <button class="modal-close is-large" aria-label="close"></button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.0.0/d3.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.5.1/dist/chart.min.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const helpModal = document.getElementById("helpModal");
+        document
+          .querySelector(".modal-close")
+          .addEventListener("click", () =>
+            helpModal.classList.remove("is-active")
+          );
+        helpModal.classList.add("is-active"); // Show help on load
+
+        function fetchWikiData(
+          topic = document.getElementById("searchTopic").value
+        ) {
+          const url = `https://en.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&exintro=true&explaintext=true&titles=${encodeURIComponent(
+            topic
+          )}&origin=*`;
+          fetch(url)
+            .then((response) => response.json())
+            .then((data) => {
+              const pageId = Object.keys(data.query.pages)[0];
+              const article = data.query.pages[pageId];
+              if (article.extract) {
+                visualizeData(article);
+              } else {
+                alert("No results found or an error occurred.");
+              }
+            })
+            .catch((error) => console.error("Error:", error));
+        }
+
+        function visualizeData(article) {
+          document.getElementById("articleText").innerText = article.extract;
+
+          // Word Frequency (using Chart.js for simplicity)
+          const words = article.extract.toLowerCase().match(/\b\w+\b/g);
+          const frequency = words.reduce((acc, word) => {
+            acc[word] = (acc[word] || 0) + 1;
+            return acc;
+          }, {});
+          const sortedWords = Object.entries(frequency)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 20);
+          new Chart(document.getElementById("wordCloud").getContext("2d"), {
+            type: "bar",
+            data: {
+              labels: sortedWords.map((w) => w[0]),
+              datasets: [
+                {
+                  label: "Word Frequency",
+                  data: sortedWords.map((w) => w[1]),
+                  backgroundColor: "rgba(75, 192, 192, 0.2)",
+                  borderColor: "rgba(75, 192, 192, 1)",
+                  borderWidth: 1,
+                },
+              ],
+            },
+            options: { scales: { y: { beginAtZero: true } } },
+          });
+
+          // Article Structure (simplified with D3)
+          // Here, we'll simulate structure since actual parsing would be complex
+          const structure = [
+            { name: "Introduction" },
+            { name: "History" },
+            { name: "Technology" },
+          ];
+          const treeData = { name: topic, children: structure };
+          const treeLayout = d3.tree().size([300, 200]);
+          const root = d3.hierarchy(treeData);
+          treeLayout(root);
+
+          const svg = d3
+            .select("#articleStructure")
+            .append("svg")
+            .attr("width", 300)
+            .attr("height", 300)
+            .append("g")
+            .attr("transform", "translate(50,0)");
+
+          svg
+            .selectAll(".link")
+            .data(root.links())
+            .enter()
+            .append("path")
+            .attr("class", "link")
+            .attr(
+              "d",
+              d3
+                .linkHorizontal()
+                .x((d) => d.y)
+                .y((d) => d.x)
+            );
+
+          svg
+            .selectAll(".node")
+            .data(root.descendants())
+            .enter()
+            .append("g")
+            .attr(
+              "class",
+              (d) => "node" + (d.children ? " node--internal" : " node--leaf")
+            )
+            .attr("transform", (d) => `translate(${d.y},${d.x})`)
+            .append("text")
+            .text((d) => d.data.name);
+
+          // Named Entities & Related Topics would require more complex NLP or API calls,
+          // for this example, we'll simulate data
+          const entities = ["JavaScript", "ECMAScript", "Brendan Eich"];
+          const relatedTopics = [
+            "Web development",
+            "Node.js",
+            "Programming languages",
+          ];
+
+          d3.select("#entities")
+            .selectAll("div")
+            .data(entities)
+            .enter()
+            .append("div")
+            .text((d) => d)
+            .attr("class", "tag is-info m-1");
+
+          // Network Graph for Related Topics (simple example)
+          const graph = {
+            nodes: relatedTopics.map((topic) => ({ id: topic, group: 1 })),
+            links: relatedTopics.map((topic, idx) => ({
+              source: topic,
+              target: relatedTopics[(idx + 1) % relatedTopics.length],
+              value: 1,
+            })),
+          };
+
+          const simulation = d3
+            .forceSimulation(graph.nodes)
+            .force(
+              "link",
+              d3.forceLink(graph.links).id((d) => d.id)
+            )
+            .force("charge", d3.forceManyBody())
+            .force("center", d3.forceCenter(150, 150));
+
+          const svgGraph = d3
+            .select("#relatedTopics")
+            .append("svg")
+            .attr("width", 300)
+            .attr("height", 300);
+
+          const link = svgGraph
+            .append("g")
+            .selectAll("line")
+            .data(graph.links)
+            .enter()
+            .append("line");
+
+          const node = svgGraph
+            .append("g")
+            .selectAll("circle")
+            .data(graph.nodes)
+            .enter()
+            .append("circle")
+            .attr("r", 5)
+            .call(
+              d3
+                .drag()
+                .on("start", dragstarted)
+                .on("drag", dragged)
+                .on("end", dragended)
+            );
+
+          simulation.on("tick", () => {
+            link
+              .attr("x1", (d) => d.source.x)
+              .attr("y1", (d) => d.source.y)
+              .attr("x2", (d) => d.target.x)
+              .attr("y2", (d) => d.target.y);
+
+            node.attr("cx", (d) => d.x).attr("cy", (d) => d.y);
+          });
+
+          function dragstarted(event, d) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+          }
+
+          function dragged(event, d) {
+            d.fx = event.x;
+            d.fy = event.y;
+          }
+
+          function dragended(event, d) {
+            if (!event.active) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+          }
+        }
+      });
+    </script>
+  </body>
+</html>

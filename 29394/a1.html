@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Wikipedia Visualizer</title>
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+    />
+    <style>
+      /* Custom CSS will go here */
+      body {
+        padding: 20px;
+      }
+      #visualizationArea {
+        height: 600px;
+      }
+      .sidebar {
+        height: 100vh;
+        overflow-y: auto;
+        position: fixed;
+        right: 0;
+        top: 0;
+        width: 300px;
+        background: #f8f9fa;
+        padding: 20px;
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Wikipedia Article Visualizer</h1>
+      <input
+        type="text"
+        id="searchTopic"
+        class="form-control"
+        placeholder="Enter a topic..."
+      />
+      <button onclick="fetchAndVisualize()" class="btn btn-primary">
+        Search
+      </button>
+
+      <div id="visualizationArea">
+        <!-- Visualization elements will be dynamically added here -->
+      </div>
+
+      <div id="sidebar" class="sidebar"></div>
+    </div>
+
+    <script src="https://d3js.org/d3.v6.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const visualizationArea = d3.select("#visualizationArea");
+        const sidebar = d3.select("#sidebar");
+
+        async function fetchAndVisualize() {
+          const topic = document.getElementById("searchTopic").value;
+          if (!topic) return;
+
+          try {
+            // Fetch data from Wikipedia
+            const response = await fetch(
+              `https://en.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&exintro=true&explaintext=true&titles=${encodeURIComponent(
+                topic
+              )}&origin=*`
+            );
+            const data = await response.json();
+            const pageId = Object.keys(data.query.pages)[0];
+            const extract = data.query.pages[pageId].extract;
+
+            if (!extract) {
+              throw new Error("No article found for this topic.");
+            }
+
+            // Clear previous visualizations
+            visualizationArea.html("");
+            sidebar.html("").style("display", "block");
+
+            // Visualizations
+            wordFrequency(extract);
+            articleStructure(extract);
+            namedEntities(extract);
+            relatedTopics(extract);
+
+            // Show original text in sidebar
+            sidebar.append("h3").text("Article Text");
+            sidebar.append("p").html(extract);
+          } catch (error) {
+            visualizationArea.html(`<p>Error: ${error.message}</p>`);
+          }
+        }
+
+        function wordFrequency(text) {
+          // Simple word frequency without stop words
+          const words = text
+            .toLowerCase()
+            .match(/\b\w+\b/g)
+            .filter((word) => !["the", "and", "of", "to"].includes(word));
+          const frequency = d3.rollup(
+            words,
+            (v) => v.length,
+            (d) => d
+          );
+          const data = Array.from(frequency, ([word, count]) => ({
+            word,
+            count,
+          }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 20);
+
+          // Use Chart.js for bar chart
+          const ctx = document.createElement("canvas");
+          visualizationArea.node().appendChild(ctx);
+          new Chart(ctx, {
+            type: "bar",
+            data: {
+              labels: data.map((d) => d.word),
+              datasets: [
+                {
+                  label: "Word Frequency",
+                  data: data.map((d) => d.count),
+                  backgroundColor: "rgba(75, 192, 192, 0.2)",
+                  borderColor: "rgba(75, 192, 192, 1)",
+                  borderWidth: 1,
+                },
+              ],
+            },
+          });
+        }
+
+        // Functions for articleStructure, namedEntities, and relatedTopics would follow similar patterns
+        // using D3.js or other libraries for visualization
+      });
+
+      // Additional functions for structure, entities, and topics would need implementations
+    </script>
+  </body>
+</html>

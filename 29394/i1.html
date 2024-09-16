@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Wikipedia Article Visualizer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3-cloud/1.2.5/d3.layout.cloud.min.js"></script>
+  </head>
+  <body class="bg-gray-100 min-h-screen">
+    <div id="app" class="container mx-auto px-4 py-8">
+      <h1 class="text-3xl font-bold mb-8 text-center text-blue-600">
+        Wikipedia Article Visualizer
+      </h1>
+
+      <div class="mb-6">
+        <input
+          type="text"
+          id="search-bar"
+          placeholder="Enter a topic..."
+          class="w-full p-3 rounded-lg border-2 border-blue-300 focus:outline-none focus:border-blue-500"
+        />
+        <p class="text-sm text-gray-500 mt-2">Search anything from Wikipedia</p>
+      </div>
+
+      <div
+        id="visualizations"
+        class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8"
+      >
+        <div class="bg-white p-4 rounded-lg shadow-md">
+          <h2 class="text-xl font-semibold mb-4 text-blue-700">Word Cloud</h2>
+          <div id="word-cloud" class="h-64"></div>
+        </div>
+        <div class="bg-white p-4 rounded-lg shadow-md">
+          <h2 class="text-xl font-semibold mb-4 text-blue-700">
+            Article Structure
+          </h2>
+          <div id="article-structure" class="h-64"></div>
+        </div>
+        <div class="bg-white p-4 rounded-lg shadow-md">
+          <h2 class="text-xl font-semibold mb-4 text-blue-700">
+            Named Entities
+          </h2>
+          <div id="named-entities" class="h-64"></div>
+        </div>
+        <div class="bg-white p-4 rounded-lg shadow-md">
+          <h2 class="text-xl font-semibold mb-4 text-blue-700">
+            Related Topics
+          </h2>
+          <div id="related-topics" class="h-64"></div>
+        </div>
+      </div>
+
+      <div class="bg-white p-4 rounded-lg shadow-md">
+        <h2 class="text-xl font-semibold mb-4 text-blue-700">Article Text</h2>
+        <div id="article-text" class="max-h-64 overflow-y-auto"></div>
+      </div>
+    </div>
+
+    <script>
+      // Main application logic
+      const searchBar = document.getElementById("search-bar");
+      const articleText = document.getElementById("article-text");
+
+      searchBar.addEventListener("keypress", function (e) {
+        if (e.key === "Enter") {
+          const topic = this.value;
+          fetchWikipediaArticle(topic);
+        }
+      });
+
+      // Default search on page load
+      window.addEventListener("load", () => {
+        fetchWikipediaArticle("Wikipedia");
+      });
+
+      async function fetchWikipediaArticle(title) {
+        const url = `https://en.wikipedia.org/w/api.php?action=query&format=json&prop=extracts|links&exintro=true&explaintext=true&titles=${encodeURIComponent(
+          title
+        )}&origin=*`;
+
+        try {
+          const response = await fetch(url);
+          const data = await response.json();
+          const { content, links } = extractArticleContent(data);
+
+          if (content) {
+            displayArticleText(content);
+            visualizeWordCloud(content);
+            visualizeArticleStructure(content);
+            visualizeNamedEntities(content);
+            visualizeRelatedTopics(links);
+            searchBar.value = title; // Update search bar with the current topic
+          } else {
+            displayError("No content found for this topic.");
+          }
+        } catch (error) {
+          console.error("Error fetching Wikipedia article:", error);
+          displayError("An error occurred while fetching the article.");
+        }
+      }
+      function extractArticleContent(apiResponse) {
+        const pages = apiResponse.query.pages;
+        const pageId = Object.keys(pages)[0];
+        return {
+          content: pages[pageId].extract,
+          links: pages[pageId].links
+            ? pages[pageId].links.map((link) => link.title)
+            : [],
+        };
+      }
+
+      function displayArticleText(content) {
+        articleText.innerHTML = `<p class="text-gray-700">${content}</p>`;
+      }
+
+      function displayError(message) {
+        articleText.innerHTML = `<p class="text-red-500">${message}</p>`;
+      }
+
+      function visualizeWordCloud(content) {
+        const words = content.toLowerCase().split(/\s+/g);
+        const wordCounts = words.reduce((acc, word) => {
+          if (word.length > 3) {
+            acc[word] = (acc[word] || 0) + 1;
+          }
+          return acc;
+        }, {});
+
+        const wordCloudData = Object.entries(wordCounts)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 50)
+          .map(([text, size]) => ({ text, size: size * 5 }));
+
+        const width = document.getElementById("word-cloud").clientWidth;
+        const height = document.getElementById("word-cloud").clientHeight;
+
+        d3.select("#word-cloud").select("svg").remove();
+        const svg = d3
+          .select("#word-cloud")
+          .append("svg")
+          .attr("width", width)
+          .attr("height", height);
+
+        d3.layout
+          .cloud()
+          .size([width, height])
+          .words(wordCloudData)
+          .padding(5)
+          .rotate(() => ~~(Math.random() * 2) * 90)
+          .font("Arial")
+          .fontSize((d) => d.size)
+          .on("end", draw)
+          .start();
+
+        function draw(words) {
+          svg
+            .append("g")
+            .attr("transform", `translate(${width / 2},${height / 2})`)
+            .selectAll("text")
+            .data(words)
+            .enter()
+            .append("text")
+            .style("font-size", (d) => `${d.size}px`)
+            .style("font-family", "Arial")
+            .style("fill", () => d3.schemeCategory10[~~(Math.random() * 10)])
+            .attr("text-anchor", "middle")
+            .attr(
+              "transform",
+              (d) => `translate(${d.x},${d.y})rotate(${d.rotate})`
+            )
+            .text((d) => d.text);
+        }
+      }
+
+      function visualizeArticleStructure(content) {
+        const sentences = content.split(/[.!?]+/);
+        const paragraphs = content
+          .split("\n")
+          .filter((p) => p.trim().length > 0);
+
+        const data = {
+          name: "Article",
+          children: paragraphs.map((p, i) => ({
+            name: `Paragraph ${i + 1}`,
+            children: sentences
+              .filter((s) => p.includes(s))
+              .map((s, j) => ({
+                name: `Sentence ${j + 1}`,
+                value: s.split(/\s+/).length,
+              })),
+          })),
+        };
+
+        const width = document.getElementById("article-structure").clientWidth;
+        const height =
+          document.getElementById("article-structure").clientHeight;
+
+        d3.select("#article-structure").select("svg").remove();
+        const svg = d3
+          .select("#article-structure")
+          .append("svg")
+          .attr("width", width)
+          .attr("height", height);
+
+        const color = d3.scaleOrdinal(d3.schemeCategory10);
+
+        const treemap = d3
+          .treemap()
+          .size([width, height])
+          .padding(1)
+          .round(true);
+
+        const root = d3
+          .hierarchy(data)
+          .sum((d) => d.value)
+          .sort((a, b) => b.value - a.value);
+
+        treemap(root);
+
+        const cell = svg
+          .selectAll("g")
+          .data(root.leaves())
+          .enter()
+          .append("g")
+          .attr("transform", (d) => `translate(${d.x0},${d.y0})`);
+
+        cell
+          .append("rect")
+          .attr("width", (d) => d.x1 - d.x0)
+          .attr("height", (d) => d.y1 - d.y0)
+          .attr("fill", (d) => color(d.parent.data.name));
+
+        cell
+          .append("text")
+          .selectAll("tspan")
+          .data((d) => d.data.name.split(/(?=[A-Z][^A-Z])/g))
+          .enter()
+          .append("tspan")
+          .attr("x", 4)
+          .attr("y", (d, i) => 13 + i * 10)
+          .text((d) => d);
+      }
+
+      function visualizeNamedEntities(content) {
+        const entities = extractNamedEntities(content);
+        const width = document.getElementById("named-entities").clientWidth;
+        const height = document.getElementById("named-entities").clientHeight;
+
+        d3.select("#named-entities").select("svg").remove();
+        const svg = d3
+          .select("#named-entities")
+          .append("svg")
+          .attr("width", width)
+          .attr("height", height);
+
+        const color = d3.scaleOrdinal(d3.schemeCategory10);
+
+        const pack = d3.pack().size([width, height]).padding(3);
+
+        const root = d3.hierarchy({ children: entities }).sum((d) => d.value);
+
+        const node = svg
+          .selectAll(".node")
+          .data(pack(root).leaves())
+          .enter()
+          .append("g")
+          .attr("class", "node")
+          .attr("transform", (d) => `translate(${d.x},${d.y})`);
+
+        node
+          .append("circle")
+          .attr("r", (d) => d.r)
+          .style("fill", (d) => color(d.data.type));
+
+        node
+          .append("text")
+          .attr("dy", ".3em")
+          .style("text-anchor", "middle")
+          .text((d) => d.data.name.substring(0, d.r / 3));
+      }
+
+      function extractNamedEntities(content) {
+        const words = content.split(/\s+/);
+        const capitalizedWords = words.filter((word) =>
+          /^[A-Z][a-z]{2,}$/.test(word)
+        );
+        const entities = capitalizedWords.reduce((acc, word) => {
+          acc[word] = (acc[word] || 0) + 1;
+          return acc;
+        }, {});
+
+        return Object.entries(entities)
+          .map(([name, value]) => ({
+            name,
+            value,
+            type: guessEntityType(name),
+          }))
+          .sort((a, b) => b.value - a.value)
+          .slice(0, 20);
+      }
+
+      function guessEntityType(name) {
+        const personNames = [
+          "John",
+          "Mary",
+          "David",
+          "Sarah",
+          "Michael",
+          "Emma",
+        ];
+        const placeNames = [
+          "London",
+          "Paris",
+          "New",
+          "York",
+          "Tokyo",
+          "Berlin",
+        ];
+        const orgKeywords = [
+          "Inc",
+          "Ltd",
+          "Corporation",
+          "Company",
+          "Organization",
+        ];
+
+        if (personNames.includes(name)) return "Person";
+        if (placeNames.includes(name)) return "Place";
+        if (orgKeywords.some((keyword) => name.includes(keyword)))
+          return "Organization";
+        return "Unknown";
+      }
+
+      function visualizeRelatedTopics(links) {
+        const width = document.getElementById("related-topics").clientWidth;
+        const height = document.getElementById("related-topics").clientHeight;
+
+        d3.select("#related-topics").select("svg").remove();
+        const svg = d3
+          .select("#related-topics")
+          .append("svg")
+          .attr("width", width)
+          .attr("height", height);
+
+        const data = {
+          nodes: [
+            { id: "center", name: "Main Topic" },
+            ...links.slice(0, 10).map((link) => ({ id: link, name: link })),
+          ],
+          links: links
+            .slice(0, 10)
+            .map((link) => ({ source: "center", target: link })),
+        };
+
+        const simulation = d3
+          .forceSimulation(data.nodes)
+          .force(
+            "link",
+            d3.forceLink(data.links).id((d) => d.id)
+          )
+          .force("charge", d3.forceManyBody().strength(-100))
+          .force("center", d3.forceCenter(width / 2, height / 2));
+
+        const link = svg
+          .append("g")
+          .selectAll("line")
+          .data(data.links)
+          .enter()
+          .append("line")
+          .attr("stroke", "#999")
+          .attr("stroke-opacity", 0.6);
+
+        const node = svg
+          .append("g")
+          .selectAll("g")
+          .data(data.nodes)
+          .enter()
+          .append("g")
+          .call(
+            d3
+              .drag()
+              .on("start", dragstarted)
+              .on("drag", dragged)
+              .on("end", dragended)
+          );
+
+        node
+          .append("circle")
+          .attr("r", (d) => (d.id === "center" ? 8 : 5))
+          .attr("fill", (d) => (d.id === "center" ? "#ff0000" : "#1f77b4"));
+
+        node
+          .append("text")
+          .text((d) => d.name)
+          .attr("x", 6)
+          .attr("y", 3)
+          .style("font-size", "8px")
+          .style("fill", "#333");
+
+        node.append("title").text((d) => d.name);
+
+        simulation.on("tick", () => {
+          link
+            .attr("x1", (d) => d.source.x)
+            .attr("y1", (d) => d.source.y)
+            .attr("x2", (d) => d.target.x)
+            .attr("y2", (d) => d.target.y);
+
+          node.attr("transform", (d) => `translate(${d.x},${d.y})`);
+        });
+
+        function dragstarted(event, d) {
+          if (!event.active) simulation.alphaTarget(0.3).restart();
+          d.fx = d.x;
+          d.fy = d.y;
+        }
+
+        function dragged(event, d) {
+          d.fx = event.x;
+          d.fy = event.y;
+        }
+
+        function dragended(event, d) {
+          if (!event.active) simulation.alphaTarget(0);
+          d.fx = null;
+          d.fy = null;
+        }
+      }
+    </script>
+  </body>
+</html>
