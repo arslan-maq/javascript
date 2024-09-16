@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Country Information Dashboard</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+    />
+    <style>
+      #map {
+        height: 400px;
+      }
+      .loader {
+        border: 16px solid #f3f3f3;
+        border-top: 16px solid #3498db;
+        border-radius: 50%;
+        width: 120px;
+        height: 120px;
+        animation: spin 2s linear infinite;
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+      }
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>World Countries Dashboard</h1>
+      <div class="loader" id="loading"></div>
+      <div id="map" class="mb-3"></div>
+      <input
+        type="text"
+        id="searchCountry"
+        placeholder="Search for a country..."
+        class="form-control mb-3"
+      />
+      <div id="filters" class="mb-3"></div>
+      <canvas id="barChart" width="400" height="200"></canvas>
+      <div id="countryList"></div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.5.1"></script>
+    <script>
+      document.getElementById("loading").style.display = "block";
+
+      fetch("https://restcountries.com/v3.1/all")
+        .then((response) => response.json())
+        .then((countries) => {
+          document.getElementById("loading").style.display = "none";
+          const processedCountries = countries.map((country) => ({
+            name: country.name.common,
+            population: country.population,
+            area: country.area,
+            gdp: country.gdp ? country.gdp.total : null, // Hypothetical GDP field
+            latlng: country.latlng,
+            region: country.region,
+            languages: Object.values(country.languages || {}).join(", "),
+            currencies: Object.keys(country.currencies || {}).join(", "),
+            borders: country.borders || [],
+          }));
+
+          // Initialize Leaflet map
+          const map = L.map("map").setView([0, 0], 2);
+          L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            maxZoom: 19,
+          }).addTo(map);
+
+          // Add countries to map
+          processedCountries.forEach((country) => {
+            if (country.latlng) {
+              L.circleMarker(country.latlng, {
+                color: "red",
+                fillColor: "#f03",
+                fillOpacity: 0.5,
+                radius: Math.sqrt(country.population) * 0.00005, // Visual scaling
+              })
+                .bindPopup(country.name)
+                .addTo(map);
+            }
+          });
+
+          // Function to update bar chart
+          function updateBarChart(countryNames) {
+            let ctx = document.getElementById("barChart").getContext("2d");
+            new Chart(ctx, {
+              type: "bar",
+              data: {
+                labels: countryNames,
+                datasets: [
+                  {
+                    label: "Population",
+                    data: countryNames.map(
+                      (name) =>
+                        processedCountries.find((c) => c.name === name)
+                          .population
+                    ),
+                    backgroundColor: "rgba(75, 192, 192, 0.2)",
+                    borderColor: "rgba(75, 192, 192, 1)",
+                    borderWidth: 1,
+                  },
+                ],
+              },
+            });
+          }
+
+          // Search functionality
+          document
+            .getElementById("searchCountry")
+            .addEventListener("keyup", function (e) {
+              const searchString = e.target.value.toLowerCase();
+              const filteredCountries = processedCountries.filter((country) =>
+                country.name.toLowerCase().includes(searchString)
+              );
+              // Update UI with filteredCountries
+            });
+
+          // Filters can be implemented similarly with dropdowns for region, language, etc.
+          // Sorting would involve array methods like sort() before rendering the list or chart.
+
+          // Initial chart display
+          updateBarChart(processedCountries.slice(0, 5).map((c) => c.name));
+        });
+    </script>
+  </body>
+</html>
