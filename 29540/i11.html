@@ -3,17 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Cryptocurrency Dashboard</title>
+    <title>Crypto Insights Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.0.0/d3.min.js"></script>
     <style>
       body {
-        display: flex;
-        flex-direction: column;
-        min-height: 100vh;
-        background-color: #000033;
         font-family: "Inter", sans-serif;
+        background: linear-gradient(135deg, #1a237e, #000051);
         color: #e0e0e0;
       }
       .gradient-bg {
@@ -23,8 +20,23 @@
           rgba(0, 0, 81, 0.8)
         );
       }
+      .chart-container {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border-radius: 15px;
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+      }
+      .btn {
+        @apply px-4 py-2 rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-opacity-50;
+      }
+      .btn-primary {
+        @apply bg-indigo-600 hover:bg-indigo-700 text-white focus:ring-indigo-500;
+      }
+      .btn-secondary {
+        @apply bg-pink-600 hover:bg-pink-700 text-white focus:ring-pink-500;
+      }
       .loader {
-        border: 5px solid #0a0a2a;
+        border: 5px solid rgba(255, 255, 255, 0.1);
         border-top: 5px solid #3498db;
         border-radius: 50%;
         width: 50px;
@@ -39,33 +51,19 @@
           transform: rotate(360deg);
         }
       }
-      .chart-container {
-        background-color: rgba(255, 255, 255, 0.1);
-        border-radius: 10px;
-        padding: 20px;
-      }
-      .details-panel {
-        background-color: rgba(255, 255, 255, 0.1);
-        border-radius: 10px;
-        padding: 20px;
-        margin-top: 20px;
-      }
-      main {
-        flex: 1;
-      }
     </style>
   </head>
-  <body class="text-white">
+  <body class="min-h-screen flex flex-col">
     <header class="gradient-bg p-6 shadow-lg">
       <h1
-        class="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-pink-600"
+        class="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600"
       >
         Crypto Insights Dashboard
       </h1>
     </header>
 
-    <main class="container mx-auto px-4 py-8">
-      <div id="loader" class="loader mx-auto"></div>
+    <main class="container mx-auto px-4 py-8 flex-grow">
+      <div id="loader" class="loader mx-auto mt-20"></div>
       <div id="dashboard" class="hidden">
         <div class="mb-8">
           <h2 class="text-2xl font-semibold mb-4">Select Cryptocurrencies</h2>
@@ -76,24 +74,24 @@
           <div id="timeRangeSelector" class="flex space-x-4"></div>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div class="chart-container">
+          <div class="chart-container p-6">
             <h2 class="text-2xl font-semibold mb-4">Price Chart</h2>
             <canvas id="priceChart"></canvas>
           </div>
-          <div class="chart-container">
+          <div class="chart-container p-6">
             <h2 class="text-2xl font-semibold mb-4">Volume Chart</h2>
             <canvas id="volumeChart"></canvas>
           </div>
-          <div class="chart-container">
+          <div class="chart-container p-6">
             <h2 class="text-2xl font-semibold mb-4">Market Cap Bubble Chart</h2>
             <div id="bubbleChart"></div>
           </div>
-          <div class="chart-container">
+          <div class="chart-container p-6">
             <h2 class="text-2xl font-semibold mb-4">Correlation Heatmap</h2>
             <div id="heatmap"></div>
           </div>
         </div>
-        <div id="detailsPanel" class="details-panel mt-8 hidden">
+        <div id="detailsPanel" class="chart-container mt-8 p-6 hidden">
           <h2 class="text-2xl font-semibold mb-4">Cryptocurrency Details</h2>
           <div
             id="detailsContent"
@@ -162,13 +160,12 @@
         updateCharts();
       }
 
-      async function initializeCryptoSelector() {
+      function initializeCryptoSelector() {
         const selectorContainer = document.getElementById("cryptoSelector");
         cryptoData.slice(0, 20).forEach((crypto) => {
           const button = document.createElement("button");
           button.textContent = crypto.symbol.toUpperCase();
-          button.className =
-            "px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition-colors";
+          button.className = "btn btn-primary";
           button.addEventListener("click", () => toggleCryptoSelection(crypto));
           selectorContainer.appendChild(button);
         });
@@ -179,8 +176,7 @@
         timeRanges.forEach((range) => {
           const button = document.createElement("button");
           button.textContent = range;
-          button.className =
-            "px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 transition-colors";
+          button.className = "btn btn-secondary";
           button.addEventListener("click", () => changeTimeRange(range));
           selectorContainer.appendChild(button);
         });
@@ -530,63 +526,63 @@
         const detailsContent = document.getElementById("detailsContent");
 
         detailsContent.innerHTML = `
-                <div class="bg-gray-700 p-4 rounded-lg">
-                    <h3 class="text-2xl font-semibold mb-2">${
-                      crypto.name
-                    } (${crypto.symbol.toUpperCase()})</h3>
-                    <img src="${crypto.image}" alt="${
+              <div class="bg-gray-700 p-4 rounded-lg">
+                  <h3 class="text-2xl font-semibold mb-2">${
+                    crypto.name
+                  } (${crypto.symbol.toUpperCase()})</h3>
+                  <img src="${crypto.image}" alt="${
           crypto.name
         }" class="w-16 h-16 mb-2">
-                    <p class="text-lg">Current Price: <span class="font-bold">$${crypto.current_price.toLocaleString()}</span></p>
-                    <p>Market Cap Rank: #${crypto.market_cap_rank}</p>
-                </div>
-                <div class="bg-gray-700 p-4 rounded-lg">
-                    <h4 class="text-xl font-semibold mb-2">Price Changes</h4>
-                    <p>1h: <span class="${getColorClass(
-                      crypto.price_change_percentage_1h_in_currency
-                    )}">${crypto.price_change_percentage_1h_in_currency.toFixed(
+                  <p class="text-lg">Current Price: <span class="font-bold">$${crypto.current_price.toLocaleString()}</span></p>
+                  <p>Market Cap Rank: #${crypto.market_cap_rank}</p>
+              </div>
+              <div class="bg-gray-700 p-4 rounded-lg">
+                  <h4 class="text-xl font-semibold mb-2">Price Changes</h4>
+                  <p>1h: <span class="${getColorClass(
+                    crypto.price_change_percentage_1h_in_currency
+                  )}">${crypto.price_change_percentage_1h_in_currency.toFixed(
           2
         )}%</span></p>
-                    <p>24h: <span class="${getColorClass(
-                      crypto.price_change_percentage_24h_in_currency
-                    )}">${crypto.price_change_percentage_24h_in_currency.toFixed(
+                  <p>24h: <span class="${getColorClass(
+                    crypto.price_change_percentage_24h_in_currency
+                  )}">${crypto.price_change_percentage_24h_in_currency.toFixed(
           2
         )}%</span></p>
-                    <p>7d: <span class="${getColorClass(
-                      crypto.price_change_percentage_7d_in_currency
-                    )}">${crypto.price_change_percentage_7d_in_currency.toFixed(
+                  <p>7d: <span class="${getColorClass(
+                    crypto.price_change_percentage_7d_in_currency
+                  )}">${crypto.price_change_percentage_7d_in_currency.toFixed(
           2
         )}%</span></p>
-                    <p>30d: <span class="${getColorClass(
-                      crypto.price_change_percentage_30d_in_currency
-                    )}">${crypto.price_change_percentage_30d_in_currency.toFixed(
+                  <p>30d: <span class="${getColorClass(
+                    crypto.price_change_percentage_30d_in_currency
+                  )}">${crypto.price_change_percentage_30d_in_currency.toFixed(
           2
         )}%</span></p>
-                </div>
-                <div class="bg-gray-700 p-4 rounded-lg">
-                    <h4 class="text-xl font-semibold mb-2">Market Data</h4>
-                    <p>Market Cap: $${crypto.market_cap.toLocaleString()}</p>
-                    <p>24h Volume: $${crypto.total_volume.toLocaleString()}</p>
-                    <p>Circulating Supply: ${crypto.circulating_supply.toLocaleString()} ${crypto.symbol.toUpperCase()}</p>
-                    <p>Max Supply: ${
-                      crypto.max_supply
-                        ? crypto.max_supply.toLocaleString()
-                        : "N/A"
-                    } ${crypto.symbol.toUpperCase()}</p>
-                </div>
-                <div class="bg-gray-700 p-4 rounded-lg">
-                    <h4 class="text-xl font-semibold mb-2">Additional Info</h4>
-                    <p>All-Time High: $${crypto.ath.toLocaleString()} (${new Date(
+              </div>
+              <div class="bg-gray-700 p-4 rounded-lg">
+                  <h4 class="text-xl font-semibold mb-2">Market Data</h4>
+                  <p>Market Cap: $${crypto.market_cap.toLocaleString()}</p>
+                  <p>24h Volume: $${crypto.total_volume.toLocaleString()}</p>
+                  <p>Circulating Supply: ${crypto.circulating_supply.toLocaleString()} ${crypto.symbol.toUpperCase()}</p>
+                  <p>Max Supply: ${
+                    crypto.max_supply
+                      ? crypto.max_supply.toLocaleString()
+                      : "N/A"
+                  } ${crypto.symbol.toUpperCase()}</p>
+              </div>
+              <div class="bg-gray-700 p-4 rounded-lg">
+                  <h4 class="text-xl font-semibold mb-2">Additional Info</h4>
+                  <p>All-Time High: $${crypto.ath.toLocaleString()} (${new Date(
           crypto.ath_date
         ).toLocaleDateString()})</p>
-                    <p>All-Time Low: $${crypto.atl.toLocaleString()} (${new Date(
+                  <p>All-Time Low: $${crypto.atl.toLocaleString()} (${new Date(
           crypto.atl_date
         ).toLocaleDateString()})</p>
-                    <p>Last Updated: ${new Date(
-                      crypto.last_updated
-                    ).toLocaleString()}</p>
-                </div>
-            `;
+                  <p>Last Updated: ${new Date(
+                    crypto.last_updated
+                  ).toLocaleString()}</p>
+              </div>
+          `;
 
         detailsPanel.classList.remove("hidden");
       }
@@ -600,10 +596,10 @@
         const detailsContent = document.getElementById("detailsContent");
 
         detailsContent.innerHTML = `
-    <h3 class="text-xl font-semibold mb-2">Correlation Details</h3>
-    <p>${correlationData.x} to ${correlationData.y}</p>
-    <p>Correlation: ${correlationData.correlation.toFixed(4)}</p>
-    <p>Strength: ${getCorrelationStrength(correlationData.correlation)}</p>
+  <h3 class="text-xl font-semibold mb-2">Correlation Details</h3>
+  <p>${correlationData.x} to ${correlationData.y}</p>
+  <p>Correlation: ${correlationData.correlation.toFixed(4)}</p>
+  <p>Strength: ${getCorrelationStrength(correlationData.correlation)}</p>
 `;
 
         detailsPanel.classList.remove("hidden");
