@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Space Missions Dashboard</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+    />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+      }
+      #dashboard {
+        display: flex;
+      }
+      #filters,
+      #visualizations {
+        padding: 20px;
+      }
+      #map {
+        height: 300px;
+        width: 100%;
+      }
+      .chart {
+        width: 100%;
+        min-height: 250px;
+      }
+      .loader {
+        border: 16px solid #f3f3f3;
+        border-top: 16px solid #3498db;
+        border-radius: 50%;
+        width: 120px;
+        height: 120px;
+        animation: spin 2s linear infinite;
+        margin: 20px auto;
+        display: none;
+      }
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="dashboard">
+      <div id="filters">
+        <h3>Filters</h3>
+        <input type="date" id="start-date" /> to
+        <input type="date" id="end-date" />
+        <select id="status-filter">
+          <option value="">All Statuses</option>
+          <option value="success">Success</option>
+          <option value="failed">Failed</option>
+        </select>
+        <input type="text" id="agency-filter" placeholder="Agency" />
+        <input
+          type="text"
+          id="search"
+          placeholder="Search missions or rockets..."
+        />
+        <button onclick="updateData()">Apply Filters</button>
+      </div>
+      <div id="visualizations">
+        <div id="loader" class="loader"></div>
+        <div id="timeline" class="chart"></div>
+        <div id="pieChart" class="chart"></div>
+        <div id="barChart" class="chart"></div>
+        <div id="map"></div>
+      </div>
+    </div>
+    <script src="https://d3js.org/d3.v6.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script>
+      const apiUrl =
+        "https://ll.thespacedevs.com/2.2.0/launch/?format=json&mode=detailed&search=";
+      let launches = [];
+
+      function fetchData(url) {
+        document.getElementById("loader").style.display = "block";
+        fetch(url)
+          .then((response) => response.json())
+          .then((data) => {
+            launches = data.results;
+            updateVisualizations();
+            document.getElementById("loader").style.display = "none";
+          });
+      }
+
+      function updateData() {
+        let url = apiUrl;
+        const startDate = document.getElementById("start-date").value;
+        const endDate = document.getElementById("end-date").value;
+        const status = document.getElementById("status-filter").value;
+        const agency = document.getElementById("agency-filter").value;
+
+        if (startDate) url += `&window_start__gte=${startDate}`;
+        if (endDate) url += `&window_end__lte=${endDate}`;
+        if (status)
+          url += `&status=${
+            status === "success" ? 1 : status === "failed" ? 4 : ""
+          }`;
+        if (agency) url += `&launch_service_provider__name=${agency}`;
+
+        fetchData(url);
+      }
+
+      function updateVisualizations() {
+        const filteredLaunches = launches.filter((launch) => {
+          const searchTerm = document
+            .getElementById("search")
+            .value.toLowerCase();
+          return (
+            launch.name.toLowerCase().includes(searchTerm) ||
+            launch.rocket.configuration.name.toLowerCase().includes(searchTerm)
+          );
+        });
+
+        // Update each visualization
+        updateTimeline(filteredLaunches);
+        updatePieChart(filteredLaunches);
+        updateBarChart(filteredLaunches);
+        updateMap(filteredLaunches);
+      }
+
+      function updateTimeline(data) {
+        d3.select("#timeline").html("");
+        const svg = d3
+          .select("#timeline")
+          .append("svg")
+          .attr("width", 500)
+          .attr("height", 300);
+        // Implementation for timeline visualization with D3
+      }
+
+      function updatePieChart(data) {
+        let agencyCount = d3.rollup(
+          data,
+          (v) => v.length,
+          (d) => d.launch_service_provider.name
+        );
+        const pieData = Array.from(agencyCount, ([key, value]) => ({
+          agency: key,
+          launches: value,
+        }));
+
+        // D3 pie chart implementation
+        d3.select("#pieChart").html("");
+        const svg = d3
+          .select("#pieChart")
+          .append("svg")
+          .attr("width", 300)
+          .attr("height", 300);
+        // Pie chart logic here
+      }
+
+      function updateBarChart(data) {
+        let rocketStatus = d3.rollup(
+          data,
+          (v) => ({
+            success: v.filter((d) => d.status.id === 1).length,
+            failed: v.filter((d) => d.status.id === 4).length,
+          }),
+          (d) => d.rocket.configuration.name
+        );
+
+        // D3 bar chart implementation
+      }
+
+      function updateMap(data) {
+        if (!document.getElementById("map")._leaflet_id) {
+          const map = L.map("map").setView([0, 0], 2);
+          L.tileLayer(
+            "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          ).addTo(map);
+        }
+        // Add markers for launch sites
+        data.forEach((launch) => {
+          if (launch.pad.location) {
+            L.marker([launch.pad.latitude, launch.pad.longitude])
+              .addTo(map)
+              .bindPopup(launch.name);
+          }
+        });
+      }
+
+      // Initial fetch
+      fetchData(apiUrl + "SpaceX");
+    </script>
+  </body>
+</html>

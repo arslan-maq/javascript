@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Space Mission Dashboard</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bulma@0.9.3/css/bulma.min.css"
+    />
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/leaflet.js"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/leaflet.css"
+    />
+    <style>
+      #loader {
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+      }
+      .chart {
+        width: 100%;
+        height: 300px;
+      }
+    </style>
+  </head>
+  <body>
+    <section class="section">
+      <div class="container">
+        <h1 class="title">Space Mission Dashboard</h1>
+        <div id="loader" class="loader">Loading...</div>
+        <div class="field">
+          <label class="label">Search</label>
+          <div class="control">
+            <input
+              id="searchInput"
+              class="input"
+              type="text"
+              placeholder="Search missions or rockets"
+            />
+          </div>
+        </div>
+        <div class="field is-grouped">
+          <div class="control">
+            <label class="label">Date From:</label>
+            <input type="date" id="dateFrom" />
+          </div>
+          <div class="control">
+            <label class="label">Date To:</label>
+            <input type="date" id="dateTo" />
+          </div>
+          <div class="control">
+            <label class="label">Status:</label>
+            <select id="statusFilter">
+              <option value="">All</option>
+              <option value="upcoming">Upcoming</option>
+              <option value="success">Success</option>
+              <option value="failure">Failure</option>
+            </select>
+          </div>
+          <div class="control">
+            <label class="label">Agency:</label>
+            <input type="text" id="agencyFilter" placeholder="Agency name" />
+          </div>
+          <button class="button is-link" onclick="fetchAndUpdate()">
+            Filter
+          </button>
+        </div>
+        <div id="timeline" class="chart"></div>
+        <div id="pieChart" class="chart"></div>
+        <div id="barChart" class="chart"></div>
+        <div id="map" style="height: 400px"></div>
+        <div id="missionDetails"></div>
+      </div>
+    </section>
+    <script>
+      let launches = [];
+
+      function fetchData() {
+        document.getElementById("loader").style.display = "block";
+        fetch(
+          "https://ll.thespacedevs.com/2.2.0/launch/?format=json&mode=detailed"
+        )
+          .then((response) => response.json())
+          .then((data) => {
+            launches = data.results;
+            document.getElementById("loader").style.display = "none";
+            updateVisualizations();
+          });
+      }
+
+      function updateVisualizations() {
+        const filteredLaunches = filterLaunches();
+        drawTimeline(filteredLaunches);
+        drawPieChart(filteredLaunches);
+        drawBarChart(filteredLaunches);
+        displayMissionDetails(filteredLaunches);
+        // Map initialization should be here or in a separate function
+      }
+
+      function filterLaunches() {
+        let filtered = launches;
+        const searchTerm = document
+          .getElementById("searchInput")
+          .value.toLowerCase();
+        const dateFrom = document.getElementById("dateFrom").value;
+        const dateTo = document.getElementById("dateTo").value;
+        const status = document.getElementById("statusFilter").value;
+        const agency = document
+          .getElementById("agencyFilter")
+          .value.toLowerCase();
+
+        if (searchTerm) {
+          filtered = filtered.filter(
+            (launch) =>
+              launch.name.toLowerCase().includes(searchTerm) ||
+              (launch.rocket &&
+                launch.rocket.configuration.name
+                  .toLowerCase()
+                  .includes(searchTerm))
+          );
+        }
+        if (dateFrom)
+          filtered = filtered.filter(
+            (l) => new Date(l.net) >= new Date(dateFrom)
+          );
+        if (dateTo)
+          filtered = filtered.filter(
+            (l) => new Date(l.net) <= new Date(dateTo)
+          );
+        if (status)
+          filtered = filtered.filter((l) =>
+            status === "upcoming"
+              ? l.status.id === 1
+              : l.status.id === (status === "success" ? 3 : 4)
+          );
+        if (agency)
+          filtered = filtered.filter(
+            (l) =>
+              l.launch_service_provider &&
+              l.launch_service_provider.name.toLowerCase().includes(agency)
+          );
+
+        return filtered;
+      }
+
+      function drawTimeline(data) {
+        // Implementation for timeline with D3.js
+        // This is a placeholder for actual D3 timeline code
+        d3.select("#timeline").html("Timeline Visualization Here");
+      }
+
+      function drawPieChart(data) {
+        const agencyCount = d3.rollup(
+          data,
+          (v) => v.length,
+          (d) =>
+            d.launch_service_provider
+              ? d.launch_service_provider.name
+              : "Unknown"
+        );
+        const pieData = Array.from(agencyCount, ([key, value]) => ({
+          name: key,
+          value: value,
+        }));
+
+        const width = 300,
+          height = 300,
+          radius = Math.min(width, height) / 2;
+
+        const svg = d3
+          .select("#pieChart")
+          .html("") // Clear previous content
+          .append("svg")
+          .attr("width", width)
+          .attr("height", height)
+          .append("g")
+          .attr("transform", `translate(${width / 2},${height / 2})`);
+
+        const color = d3.scaleOrdinal(d3.schemeCategory10);
+
+        const pie = d3.pie().value((d) => d.value);
+
+        const arc = d3.arc().innerRadius(0).outerRadius(radius);
+
+        const arcs = svg
+          .selectAll("arc")
+          .data(pie(pieData))
+          .enter()
+          .append("g")
+          .attr("class", "arc");
+
+        arcs
+          .append("path")
+          .attr("d", arc)
+          .attr("fill", (d) => color(d.data.name));
+
+        // Add legend or tooltips as needed
+      }
+
+      function drawBarChart(data) {
+        // Placeholder for bar chart logic with D3.js
+        d3.select("#barChart").html("Bar Chart Visualization Here");
+      }
+
+      function displayMissionDetails(data) {
+        const detailsDiv = d3.select("#missionDetails");
+        detailsDiv.html(""); // Clear previous details
+
+        data.forEach((launch) => {
+          const div = detailsDiv.append("div").attr("class", "box");
+          div.append("h2").text(launch.name);
+          div.append("p").text(`Status: ${launch.status.name}`);
+          div.append("p").text(`Launch Date: ${launch.net}`);
+          // Add more details as needed
+        });
+      }
+
+      function initMap() {
+        // Initialize Leaflet map
+        const map = L.map("map").setView([0, 0], 2);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution: "&copy; OpenStreetMap contributors",
+        }).addTo(map);
+
+        // Add markers for launch sites (this should be called after data is fetched)
+        // For brevity, marker placement isn't shown here.
+      }
+
+      document.addEventListener("DOMContentLoaded", () => {
+        fetchData();
+        initMap();
+      });
+
+      function fetchAndUpdate() {
+        fetchData(); // Refetch data or just update with current filters
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Space Mission Dashboard</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+    />
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <style>
+      body {
+        background-color: #0f172a;
+        color: #e2e8f0;
+      }
+      #map {
+        height: 400px;
+      }
+      .chart-container {
+        width: 100%;
+        height: 400px;
+        overflow: hidden;
+      }
+      .chart-container svg {
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body class="min-h-screen flex flex-col">
+    <header class="bg-indigo-900 p-4">
+      <h1 class="text-4xl font-bold text-center text-indigo-100">
+        Space Mission Dashboard
+      </h1>
+    </header>
+    <div id="app" class="container mx-auto p-4 flex-grow">
+      <div
+        id="filters"
+        class="mb-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4"
+      >
+        <input
+          type="date"
+          id="startDate"
+          class="bg-slate-800 text-white p-2 rounded"
+        />
+        <input
+          type="date"
+          id="endDate"
+          class="bg-slate-800 text-white p-2 rounded"
+        />
+        <select id="statusFilter" class="bg-slate-800 text-white p-2 rounded">
+          <option value="all">All Statuses</option>
+          <option value="upcoming">Upcoming</option>
+          <option value="success">Successful</option>
+          <option value="failure">Failed</option>
+        </select>
+        <select id="agencyFilter" class="bg-slate-800 text-white p-2 rounded">
+          <option value="all">All Agencies</option>
+        </select>
+        <input
+          type="text"
+          id="searchInput"
+          placeholder="Search missions or rockets"
+          class="bg-slate-800 text-white p-2 rounded"
+        />
+      </div>
+      <div id="visualizations" class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div
+          id="timeline"
+          class="bg-slate-800 p-4 rounded chart-container"
+        ></div>
+        <div
+          id="pieChart"
+          class="bg-slate-800 p-4 rounded chart-container"
+        ></div>
+        <div
+          id="barChart"
+          class="bg-slate-800 p-4 rounded chart-container"
+        ></div>
+        <div id="map" class="bg-slate-800 p-4 rounded"></div>
+      </div>
+      <div id="missionDetails" class="mt-8 bg-slate-800 p-4 rounded hidden">
+        <h2 class="text-2xl font-bold mb-4">Mission Details</h2>
+        <div
+          id="missionInfo"
+          class="grid grid-cols-1 md:grid-cols-2 gap-4"
+        ></div>
+      </div>
+    </div>
+    <footer class="bg-indigo-900 p-4 text-center">
+      <p>&copy; 2024 Space Mission Dashboard. All rights reserved.</p>
+    </footer>
+    <div
+      id="loader"
+      class="fixed top-0 left-0 w-full h-full flex items-center justify-center bg-black bg-opacity-50 hidden"
+    >
+      <div
+        class="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-white"
+      ></div>
+    </div>
+
+    <script>
+      let API_URL =
+        "https://ll.thespacedevs.com/2.2.0/launch/?format=json&mode=detailed";
+      let launchData = [];
+      let map;
+      let markers = [];
+
+      async function fetchData() {
+        showLoader();
+        try {
+          const response = await fetch(API_URL);
+          const data = await response.json();
+          launchData = data.results;
+          hideLoader();
+          processData();
+          populateAgencyFilter();
+          updateVisualization(launchData);
+        } catch (error) {
+          console.error("Error fetching data:", error);
+          hideLoader();
+        }
+      }
+
+      function showLoader() {
+        document.getElementById("loader").classList.remove("hidden");
+      }
+
+      function hideLoader() {
+        document.getElementById("loader").classList.add("hidden");
+      }
+
+      function processData() {
+        launchData = launchData.filter(
+          (launch) =>
+            launch.net && launch.status && launch.launch_service_provider
+        );
+      }
+
+      function filterData() {
+        const startDate = new Date(document.getElementById("startDate").value);
+        const endDate = new Date(document.getElementById("endDate").value);
+        const status = document.getElementById("statusFilter").value;
+        const agency = document.getElementById("agencyFilter").value;
+        const searchTerm = document
+          .getElementById("searchInput")
+          .value.toLowerCase();
+
+        const filteredData = launchData.filter((launch) => {
+          const launchDate = new Date(launch.net);
+          const dateInRange =
+            (isNaN(startDate) || launchDate >= startDate) &&
+            (isNaN(endDate) || launchDate <= endDate);
+          const statusMatch =
+            status === "all" ||
+            launch.status.name.toLowerCase().includes(status);
+          const agencyMatch =
+            agency === "all" || launch.launch_service_provider.name === agency;
+          const searchMatch =
+            launch.name.toLowerCase().includes(searchTerm) ||
+            launch.rocket.configuration.name.toLowerCase().includes(searchTerm);
+
+          return dateInRange && statusMatch && agencyMatch && searchMatch;
+        });
+
+        updateVisualization(filteredData);
+      }
+
+      function searchMissions() {
+        const searchTerm = document.getElementById("searchInput").value;
+        if (searchTerm) {
+          API_URL = `https://ll.thespacedevs.com/2.2.0/launch/?format=json&mode=detailed&search=${searchTerm}`;
+        } else {
+          API_URL =
+            "https://ll.thespacedevs.com/2.2.0/launch/?format=json&mode=detailed";
+        }
+        fetchData();
+      }
+
+      function updateVisualization(data) {
+        d3.select("#timeline").select("svg").remove();
+        d3.select("#pieChart").select("svg").remove();
+        d3.select("#barChart").select("svg").remove();
+        updateMap(data);
+
+        createTimeline(data);
+        createPieChart(data);
+        createBarChart(data);
+      }
+
+      function populateAgencyFilter() {
+        const agencyFilter = document.getElementById("agencyFilter");
+        const agencies = new Set(
+          launchData.map((launch) => launch.launch_service_provider.name)
+        );
+
+        agencies.forEach((agency) => {
+          const option = document.createElement("option");
+          option.value = agency;
+          option.textContent = agency;
+          agencyFilter.appendChild(option);
+        });
+      }
+
+      function createTimeline(data) {
+        const margin = { top: 20, right: 20, bottom: 30, left: 50 };
+        const width =
+          d3.select("#timeline").node().getBoundingClientRect().width -
+          margin.left -
+          margin.right;
+        const height = 300 - margin.top - margin.bottom;
+
+        const svg = d3
+          .select("#timeline")
+          .append("svg")
+          .attr(
+            "viewBox",
+            `0 0 ${width + margin.left + margin.right} ${
+              height + margin.top + margin.bottom
+            }`
+          )
+          .append("g")
+          .attr("transform", `translate(${margin.left},${margin.top})`);
+
+        const x = d3.scaleTime().range([0, width]);
+
+        const y = d3.scaleLinear().range([height, 0]);
+
+        x.domain(d3.extent(data, (d) => new Date(d.net)));
+        y.domain([0, data.length]);
+
+        svg
+          .append("g")
+          .attr("transform", `translate(0,${height})`)
+          .call(d3.axisBottom(x))
+          .selectAll("text")
+          .attr("fill", "#e2e8f0");
+
+        svg
+          .append("g")
+          .call(d3.axisLeft(y))
+          .selectAll("text")
+          .attr("fill", "#e2e8f0");
+
+        svg
+          .selectAll("circle")
+          .data(data)
+          .enter()
+          .append("circle")
+          .attr("cx", (d) => x(new Date(d.net)))
+          .attr("cy", (d, i) => y(i))
+          .attr("r", 5)
+          .attr("fill", "#ff7f0e")
+          .on("mouseover", (event, d) => {
+            d3.select(event.currentTarget).attr("r", 8);
+            showMissionDetails(d);
+          })
+          .on("mouseout", (event) => {
+            d3.select(event.currentTarget).attr("r", 5);
+          })
+          .on("click", (event, d) => selectMission(d));
+      }
+
+      function createPieChart(data) {
+        const width = d3
+          .select("#pieChart")
+          .node()
+          .getBoundingClientRect().width;
+        const height = 300;
+        const radius = Math.min(width, height) / 2;
+
+        const svg = d3
+          .select("#pieChart")
+          .append("svg")
+          .attr("viewBox", `0 0 ${width} ${height}`)
+          .append("g")
+          .attr("transform", `translate(${width / 2},${height / 2})`);
+
+        const color = d3.scaleOrdinal(d3.schemeCategory10);
+
+        const pie = d3.pie().value((d) => d.value);
+
+        const arc = d3.arc().innerRadius(0).outerRadius(radius);
+
+        const agencyCounts = {};
+        data.forEach((launch) => {
+          const agency = launch.launch_service_provider.name;
+          agencyCounts[agency] = (agencyCounts[agency] || 0) + 1;
+        });
+
+        const pieData = Object.entries(agencyCounts).map(([key, value]) => ({
+          name: key,
+          value: value,
+        }));
+
+        const arcs = svg
+          .selectAll("arc")
+          .data(pie(pieData))
+          .enter()
+          .append("g");
+
+        arcs
+          .append("path")
+          .attr("d", arc)
+          .attr("fill", (d) => color(d.data.name))
+          .on("mouseover", (event, d) => {
+            d3.select(event.currentTarget).attr("opacity", 0.7);
+            showMissionDetails(
+              data.find(
+                (launch) => launch.launch_service_provider.name === d.data.name
+              )
+            );
+          })
+          .on("mouseout", (event) => {
+            d3.select(event.currentTarget).attr("opacity", 1);
+          })
+          .on("click", (event, d) =>
+            selectMission(
+              data.find(
+                (launch) => launch.launch_service_provider.name === d.data.name
+              )
+            )
+          );
+
+        arcs
+          .append("text")
+          .attr("transform", (d) => `translate(${arc.centroid(d)})`)
+          .attr("text-anchor", "middle")
+          .text((d) => d.data.name)
+          .style("font-size", "10px")
+          .style("fill", "#e2e8f0");
+      }
+
+      function createBarChart(data) {
+        const margin = { top: 20, right: 20, bottom: 60, left: 40 };
+        const width =
+          d3.select("#barChart").node().getBoundingClientRect().width -
+          margin.left -
+          margin.right;
+        const height = 300 - margin.top - margin.bottom;
+
+        const svg = d3
+          .select("#barChart")
+          .append("svg")
+          .attr(
+            "viewBox",
+            `0 0 ${width + margin.left + margin.right} ${
+              height + margin.top + margin.bottom
+            }`
+          )
+          .append("g")
+          .attr("transform", `translate(${margin.left},${margin.top})`);
+
+        const rocketCounts = {};
+        data.forEach((launch) => {
+          const rocket = launch.rocket.configuration.name;
+          const status = launch.status.name;
+          if (!rocketCounts[rocket]) {
+            rocketCounts[rocket] = { success: 0, failure: 0 };
+          }
+          if (status.toLowerCase().includes("success")) {
+            rocketCounts[rocket].success++;
+          } else if (status.toLowerCase().includes("failure")) {
+            rocketCounts[rocket].failure++;
+          }
+        });
+
+        const barData = Object.entries(rocketCounts).map(([key, value]) => ({
+          rocket: key,
+          success: value.success,
+          failure: value.failure,
+        }));
+
+        const x0 = d3.scaleBand().rangeRound([0, width]).paddingInner(0.1);
+
+        const x1 = d3.scaleBand().padding(0.05);
+
+        const y = d3.scaleLinear().rangeRound([height, 0]);
+
+        const z = d3.scaleOrdinal().range(["#4CAF50", "#F44336"]);
+
+        const keys = ["success", "failure"];
+
+        x0.domain(barData.map((d) => d.rocket));
+        x1.domain(keys).rangeRound([0, x0.bandwidth()]);
+        y.domain([
+          0,
+          d3.max(barData, (d) => d3.max(keys, (key) => d[key])),
+        ]).nice();
+
+        svg
+          .append("g")
+          .selectAll("g")
+          .data(barData)
+          .enter()
+          .append("g")
+          .attr("transform", (d) => `translate(${x0(d.rocket)},0)`)
+          .selectAll("rect")
+          .data((d) => keys.map((key) => ({ key: key, value: d[key] })))
+          .enter()
+          .append("rect")
+          .attr("x", (d) => x1(d.key))
+          .attr("y", (d) => y(d.value))
+          .attr("width", x1.bandwidth())
+          .attr("height", (d) => height - y(d.value))
+          .attr("fill", (d) => z(d.key));
+
+        svg
+          .append("g")
+          .attr("transform", `translate(0,${height})`)
+          .call(d3.axisBottom(x0))
+          .selectAll("text")
+          .attr("transform", "rotate(-45)")
+          .style("text-anchor", "end")
+          .attr("fill", "#e2e8f0")
+          .attr("dy", "0.5em")
+          .attr("dx", "-0.5em");
+
+        svg
+          .append("g")
+          .call(d3.axisLeft(y))
+          .selectAll("text")
+          .attr("fill", "#e2e8f0");
+
+        const legend = svg
+          .append("g")
+          .attr("font-family", "sans-serif")
+          .attr("font-size", 10)
+          .attr("text-anchor", "end")
+          .selectAll("g")
+          .data(keys.slice().reverse())
+          .enter()
+          .append("g")
+          .attr("transform", (d, i) => `translate(0,${i * 20})`);
+
+        legend
+          .append("rect")
+          .attr("x", width - 19)
+          .attr("width", 19)
+          .attr("height", 19)
+          .attr("fill", z);
+
+        legend
+          .append("text")
+          .attr("x", width - 24)
+          .attr("y", 9.5)
+          .attr("dy", "0.32em")
+          .attr("fill", "#e2e8f0")
+          .text((d) => d);
+      }
+
+      function initMap() {
+        map = L.map("map").setView([0, 0], 2);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution: "&copy; OpenStreetMap contributors",
+        }).addTo(map);
+      }
+
+      function updateMap(data) {
+        if (!map) {
+          initMap();
+        }
+
+        markers.forEach((marker) => map.removeLayer(marker));
+        markers = [];
+
+        data.forEach((launch) => {
+          if (launch.pad && launch.pad.latitude && launch.pad.longitude) {
+            const marker = L.marker([launch.pad.latitude, launch.pad.longitude])
+              .addTo(map)
+              .bindPopup(launch.name);
+
+            marker.on("click", () => showMissionDetails(launch));
+            markers.push(marker);
+          }
+        });
+      }
+
+      function selectMission(mission) {
+        showMissionDetails(mission);
+      }
+
+      function showMissionDetails(mission) {
+        const missionDetails = document.getElementById("missionDetails");
+        const missionInfo = document.getElementById("missionInfo");
+        missionDetails.classList.remove("hidden");
+        missionInfo.innerHTML = `
+                <div class="bg-slate-700 p-4 rounded">
+                    <h3 class="text-xl font-bold mb-2">${mission.name}</h3>
+                    <p><strong>Status:</strong> <span class="text-${
+                      mission.status.name.toLowerCase().includes("success")
+                        ? "green"
+                        : "red"
+                    }-500">${mission.status.name}</span></p>
+                    <p><strong>Launch Date:</strong> ${new Date(
+                      mission.net
+                    ).toLocaleString()}</p>
+                    <p><strong>Agency:</strong> ${
+                      mission.launch_service_provider.name
+                    }</p>
+                </div>
+                <div class="bg-slate-700 p-4 rounded">
+                    <p><strong>Rocket:</strong> ${
+                      mission.rocket.configuration.name
+                    }</p>
+                    <p><strong>Launch Site:</strong> ${mission.pad.name}</p>
+                    <p><strong>Location:</strong> ${
+                      mission.pad.location.name
+                    }</p>
+                    <p><strong>Mission Type:</strong> ${
+                      mission.mission ? mission.mission.type : "N/A"
+                    }</p>
+                </div>
+            `;
+      }
+
+      // Event listeners
+      document
+        .getElementById("startDate")
+        .addEventListener("change", filterData);
+      document.getElementById("endDate").addEventListener("change", filterData);
+      document
+        .getElementById("statusFilter")
+        .addEventListener("change", filterData);
+      document
+        .getElementById("agencyFilter")
+        .addEventListener("change", filterData);
+      document
+        .getElementById("searchInput")
+        .addEventListener("input", debounce(searchMissions, 300));
+
+      function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+          const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+          };
+          clearTimeout(timeout);
+          timeout = setTimeout(later, wait);
+        };
+      }
+
+      // Initialize the dashboard
+      fetchData();
+
+      // Add resize event listener for responsiveness
+      window.addEventListener(
+        "resize",
+        debounce(() => {
+          updateVisualization(launchData);
+        }, 250)
+      );
+    </script>
+  </body>
+</html>

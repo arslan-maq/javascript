@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cryptocurrency Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.0.0/d3.min.js"></script>
+    <style>
+      body {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        background-color: #000033;
+      }
+      .loader {
+        border: 5px solid #0a0a2a;
+        border-top: 5px solid #3498db;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        animation: spin 1s linear infinite;
+      }
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+      .chart-container {
+        background-color: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        padding: 20px;
+      }
+      .details-panel {
+        background-color: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        padding: 20px;
+        margin-top: 20px;
+      }
+      main {
+        flex: 1;
+      }
+    </style>
+  </head>
+  <body class="text-white">
+    <header class="bg-gray-800 p-4">
+      <h1 class="text-3xl font-bold">Crypto Insights Dashboard</h1>
+    </header>
+
+    <main class="container mx-auto px-4 py-8">
+      <div id="loader" class="loader mx-auto"></div>
+      <div id="dashboard" class="hidden">
+        <div class="mb-8">
+          <h2 class="text-2xl font-semibold mb-4">Select Cryptocurrencies</h2>
+          <div id="cryptoSelector" class="flex flex-wrap gap-2"></div>
+        </div>
+        <div class="mb-8">
+          <h2 class="text-2xl font-semibold mb-4">Select Time Range</h2>
+          <div id="timeRangeSelector" class="flex space-x-4"></div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div class="chart-container">
+            <h2 class="text-2xl font-semibold mb-4">Price Chart</h2>
+            <canvas id="priceChart"></canvas>
+          </div>
+          <div class="chart-container">
+            <h2 class="text-2xl font-semibold mb-4">Volume Chart</h2>
+            <canvas id="volumeChart"></canvas>
+          </div>
+          <div class="chart-container">
+            <h2 class="text-2xl font-semibold mb-4">Market Cap Bubble Chart</h2>
+            <div id="bubbleChart"></div>
+          </div>
+          <div class="chart-container">
+            <h2 class="text-2xl font-semibold mb-4">Correlation Heatmap</h2>
+            <div id="heatmap"></div>
+          </div>
+        </div>
+        <div id="detailsPanel" class="details-panel mt-8 hidden">
+          <h2 class="text-2xl font-semibold mb-4">Cryptocurrency Details</h2>
+          <div
+            id="detailsContent"
+            class="grid grid-cols-1 md:grid-cols-2 gap-4"
+          ></div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="bg-gray-800 p-4 mt-8">
+      <p class="text-center">
+        © 2024 Crypto Insights Dashboard. All rights reserved.
+      </p>
+    </footer>
+
+    <script>
+      const BASE_API_URL = "https://api.coingecko.com/api/v3/coins/markets";
+      let cryptoData = [];
+      let selectedCryptos = [];
+      let timeRange = "24h";
+
+      const timeRanges = ["24h", "7d", "30d", "1y"];
+      const colors = [
+        "#FF6384",
+        "#36A2EB",
+        "#FFCE56",
+        "#4BC0C0",
+        "#9966FF",
+        "#FF9F40",
+      ];
+
+      let priceChart, volumeChart;
+
+      async function fetchCryptoData(ids = [], page = 1) {
+        const params = new URLSearchParams({
+          vs_currency: "usd",
+          order: "market_cap_desc",
+          per_page: "250",
+          page: page.toString(),
+          sparkline: "false",
+          price_change_percentage: "1h,24h,7d,14d,30d,200d,1y",
+        });
+
+        if (ids.length > 0) {
+          params.append("ids", ids.join(","));
+        }
+
+        const response = await fetch(`${BASE_API_URL}?${params}`);
+        return await response.json();
+      }
+
+      function showLoader() {
+        document.getElementById("loader").style.display = "block";
+        document.getElementById("dashboard").style.display = "none";
+      }
+
+      function hideLoader() {
+        document.getElementById("loader").style.display = "none";
+        document.getElementById("dashboard").style.display = "block";
+      }
+
+      async function initializeDashboard() {
+        await initializeCryptoSelector();
+        initializeTimeRangeSelector();
+        selectedCryptos = cryptoData.slice(0, 5); // Select top 5 by default
+        updateCharts();
+      }
+
+      async function initializeCryptoSelector() {
+        const selectorContainer = document.getElementById("cryptoSelector");
+        cryptoData.slice(0, 20).forEach((crypto) => {
+          const button = document.createElement("button");
+          button.textContent = crypto.symbol.toUpperCase();
+          button.className =
+            "px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition-colors";
+          button.addEventListener("click", () => toggleCryptoSelection(crypto));
+          selectorContainer.appendChild(button);
+        });
+      }
+
+      function initializeTimeRangeSelector() {
+        const selectorContainer = document.getElementById("timeRangeSelector");
+        timeRanges.forEach((range) => {
+          const button = document.createElement("button");
+          button.textContent = range;
+          button.className =
+            "px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 transition-colors";
+          button.addEventListener("click", () => changeTimeRange(range));
+          selectorContainer.appendChild(button);
+        });
+      }
+
+      async function toggleCryptoSelection(crypto) {
+        const index = selectedCryptos.findIndex((c) => c.id === crypto.id);
+        if (index === -1) {
+          selectedCryptos.push(crypto);
+        } else {
+          selectedCryptos.splice(index, 1);
+        }
+        await updateCharts();
+      }
+
+      async function changeTimeRange(range) {
+        timeRange = range;
+        await updateCharts();
+      }
+
+      async function updateCharts() {
+        showLoader();
+        const ids = selectedCryptos.map((crypto) => crypto.id);
+        const updatedData = await fetchCryptoData(ids);
+        selectedCryptos = updatedData;
+
+        updatePriceChart();
+        updateVolumeChart();
+        updateBubbleChart();
+        updateHeatmap();
+        hideLoader();
+      }
+
+      function updatePriceChart() {
+        const ctx = document.getElementById("priceChart").getContext("2d");
+
+        if (priceChart) {
+          priceChart.destroy();
+        }
+
+        priceChart = new Chart(ctx, {
+          type: "line",
+          data: {
+            labels: timeRanges,
+            datasets: selectedCryptos.map((crypto, index) => ({
+              label: crypto.name,
+              data: [
+                crypto.current_price,
+                crypto.price_change_percentage_24h_in_currency,
+                crypto.price_change_percentage_7d_in_currency,
+                crypto.price_change_percentage_30d_in_currency,
+                crypto.price_change_percentage_1y_in_currency,
+              ],
+              borderColor: colors[index % colors.length],
+              fill: false,
+            })),
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              title: {
+                display: true,
+                text: "Price Chart",
+                color: "white",
+              },
+              legend: {
+                labels: {
+                  color: "white",
+                },
+              },
+            },
+            scales: {
+              x: {
+                ticks: {
+                  color: "white",
+                },
+                grid: {
+                  color: "rgba(255, 255, 255, 0.1)",
+                },
+              },
+              y: {
+                ticks: {
+                  color: "white",
+                },
+                grid: {
+                  color: "rgba(255, 255, 255, 0.1)",
+                },
+              },
+            },
+            onClick: (event, elements) => {
+              if (elements.length > 0) {
+                const dataIndex = elements[0].index;
+                const datasetIndex = elements[0].datasetIndex;
+                const crypto = selectedCryptos[datasetIndex];
+                showCryptoDetails(crypto);
+              }
+            },
+          },
+        });
+      }
+
+      function updateVolumeChart() {
+        const ctx = document.getElementById("volumeChart").getContext("2d");
+
+        if (volumeChart) {
+          volumeChart.destroy();
+        }
+
+        volumeChart = new Chart(ctx, {
+          type: "bar",
+          data: {
+            labels: selectedCryptos.map((c) => c.name),
+            datasets: [
+              {
+                label: "Volume",
+                data: selectedCryptos.map((c) => c.total_volume),
+                backgroundColor: colors.slice(0, selectedCryptos.length),
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              title: {
+                display: true,
+                text: "Volume Chart",
+                color: "white",
+              },
+              legend: {
+                labels: {
+                  color: "white",
+                },
+              },
+            },
+            scales: {
+              x: {
+                ticks: {
+                  color: "white",
+                },
+                grid: {
+                  color: "rgba(255, 255, 255, 0.1)",
+                },
+              },
+              y: {
+                ticks: {
+                  color: "white",
+                },
+                grid: {
+                  color: "rgba(255, 255, 255, 0.1)",
+                },
+              },
+            },
+            onClick: (event, elements) => {
+              if (elements.length > 0) {
+                const index = elements[0].index;
+                const crypto = selectedCryptos[index];
+                showCryptoDetails(crypto);
+              }
+            },
+          },
+        });
+      }
+
+      function updateBubbleChart() {
+        const width = 500;
+        const height = 400;
+        const margin = { top: 20, right: 20, bottom: 50, left: 50 };
+
+        d3.select("#bubbleChart").selectAll("*").remove();
+        const svg = d3
+          .select("#bubbleChart")
+          .append("svg")
+          .attr("width", width + margin.left + margin.right)
+          .attr("height", height + margin.top + margin.bottom)
+          .append("g")
+          .attr("transform", `translate(${margin.left},${margin.top})`);
+
+        const xScale = d3
+          .scaleLinear()
+          .domain([0, d3.max(selectedCryptos, (d) => d.market_cap)])
+          .range([0, width]);
+
+        const yScale = d3
+          .scaleLinear()
+          .domain([0, d3.max(selectedCryptos, (d) => d.total_volume)])
+          .range([height, 0]);
+
+        const bubbles = svg
+          .selectAll(".bubble")
+          .data(selectedCryptos)
+          .enter()
+          .append("circle")
+          .attr("class", "bubble")
+          .attr("cx", (d) => xScale(d.market_cap))
+          .attr("cy", (d) => yScale(d.total_volume))
+          .attr("r", (d) => Math.abs(d.price_change_percentage_24h) * 2)
+          .attr("fill", (d, i) => colors[i % colors.length])
+          .attr("opacity", 0.7)
+          .on("click", (event, d) => showCryptoDetails(d));
+
+        svg
+          .append("g")
+          .attr("transform", `translate(0, ${height})`)
+          .call(d3.axisBottom(xScale).ticks(5))
+          .attr("color", "white");
+
+        svg
+          .append("g")
+          .call(d3.axisLeft(yScale).ticks(5))
+          .attr("color", "white");
+
+        svg
+          .append("text")
+          .attr("x", width / 2)
+          .attr("y", height + margin.bottom - 10)
+          .attr("text-anchor", "middle")
+          .text("Market Cap")
+          .attr("fill", "white");
+
+        svg
+          .append("text")
+          .attr("transform", "rotate(-90)")
+          .attr("x", -height / 2)
+          .attr("y", -margin.left + 15)
+          .attr("text-anchor", "middle")
+          .text("Volume")
+          .attr("fill", "white");
+      }
+
+      function updateHeatmap() {
+        const width = 400;
+        const height = 300;
+        const margin = { top: 50, right: 50, bottom: 50, left: 50 };
+
+        d3.select("#heatmap").selectAll("*").remove();
+        const svg = d3
+          .select("#heatmap")
+          .append("svg")
+          .attr("width", width + margin.left + margin.right)
+          .attr("height", height + margin.top + margin.bottom)
+          .append("g")
+          .attr("transform", `translate(${margin.left},${margin.top})`);
+
+        const timeRangeIndex = timeRanges.indexOf(timeRange);
+        const priceChangeKey = `price_change_percentage_${timeRange}_in_currency`;
+        const correlationData = calculateCorrelation(
+          selectedCryptos,
+          priceChangeKey
+        );
+
+        const x = d3
+          .scaleBand()
+          .range([0, width])
+          .domain(selectedCryptos.map((d) => d.symbol))
+          .padding(0.01);
+
+        const y = d3
+          .scaleBand()
+          .range([height, 0])
+          .domain(selectedCryptos.map((d) => d.symbol))
+          .padding(0.01);
+
+        const colorScale = d3
+          .scaleLinear()
+          .domain([-1, 0, 1])
+          .range(["#ff4136", "#ffffff", "#2ecc40"]);
+
+        svg
+          .selectAll()
+          .data(correlationData, (d) => `${d.x}:${d.y}`)
+          .enter()
+          .append("rect")
+          .attr("x", (d) => x(d.x))
+          .attr("y", (d) => y(d.y))
+          .attr("width", x.bandwidth())
+          .attr("height", y.bandwidth())
+          .style("fill", (d) => colorScale(d.correlation))
+          .on("click", (event, d) => showCorrelationDetails(d));
+
+        svg
+          .append("g")
+          .attr("transform", `translate(0, ${height})`)
+          .call(d3.axisBottom(x))
+          .selectAll("text")
+          .attr("transform", "rotate(-45)")
+          .style("text-anchor", "end")
+          .attr("fill", "white");
+
+        svg
+          .append("g")
+          .call(d3.axisLeft(y))
+          .selectAll("text")
+          .attr("fill", "white");
+
+        svg
+          .append("text")
+          .attr("x", width / 2)
+          .attr("y", -10)
+          .attr("text-anchor", "middle")
+          .text("Correlation Heatmap")
+          .attr("fill", "white");
+      }
+      function calculateCorrelation(data, key) {
+        const correlationData = [];
+        for (let i = 0; i < data.length; i++) {
+          for (let j = 0; j < data.length; j++) {
+            const correlation =
+              i === j
+                ? 1
+                : calculatePearsonCorrelation(data[i][key], data[j][key]);
+            correlationData.push({
+              x: data[i].symbol,
+              y: data[j].symbol,
+              correlation: correlation,
+            });
+          }
+        }
+        return correlationData;
+      }
+
+      function calculatePearsonCorrelation(x, y) {
+        const n = x.length;
+        let sum_x = 0,
+          sum_y = 0,
+          sum_xy = 0,
+          sum_x2 = 0,
+          sum_y2 = 0;
+
+        for (let i = 0; i < n; i++) {
+          sum_x += x[i];
+          sum_y += y[i];
+          sum_xy += x[i] * y[i];
+          sum_x2 += x[i] * x[i];
+          sum_y2 += y[i] * y[i];
+        }
+
+        const numerator = n * sum_xy - sum_x * sum_y;
+        const denominator = Math.sqrt(
+          (n * sum_x2 - sum_x * sum_x) * (n * sum_y2 - sum_y * sum_y)
+        );
+
+        return numerator / denominator;
+      }
+
+      function showCryptoDetails(crypto) {
+        const detailsPanel = document.getElementById("detailsPanel");
+        const detailsContent = document.getElementById("detailsContent");
+
+        detailsContent.innerHTML = `
+                <div class="bg-gray-700 p-4 rounded-lg">
+                    <h3 class="text-2xl font-semibold mb-2">${
+                      crypto.name
+                    } (${crypto.symbol.toUpperCase()})</h3>
+                    <img src="${crypto.image}" alt="${
+          crypto.name
+        }" class="w-16 h-16 mb-2">
+                    <p class="text-lg">Current Price: <span class="font-bold">$${crypto.current_price.toLocaleString()}</span></p>
+                    <p>Market Cap Rank: #${crypto.market_cap_rank}</p>
+                </div>
+                <div class="bg-gray-700 p-4 rounded-lg">
+                    <h4 class="text-xl font-semibold mb-2">Price Changes</h4>
+                    <p>1h: <span class="${getColorClass(
+                      crypto.price_change_percentage_1h_in_currency
+                    )}">${crypto.price_change_percentage_1h_in_currency.toFixed(
+          2
+        )}%</span></p>
+                    <p>24h: <span class="${getColorClass(
+                      crypto.price_change_percentage_24h_in_currency
+                    )}">${crypto.price_change_percentage_24h_in_currency.toFixed(
+          2
+        )}%</span></p>
+                    <p>7d: <span class="${getColorClass(
+                      crypto.price_change_percentage_7d_in_currency
+                    )}">${crypto.price_change_percentage_7d_in_currency.toFixed(
+          2
+        )}%</span></p>
+                    <p>30d: <span class="${getColorClass(
+                      crypto.price_change_percentage_30d_in_currency
+                    )}">${crypto.price_change_percentage_30d_in_currency.toFixed(
+          2
+        )}%</span></p>
+                </div>
+                <div class="bg-gray-700 p-4 rounded-lg">
+                    <h4 class="text-xl font-semibold mb-2">Market Data</h4>
+                    <p>Market Cap: $${crypto.market_cap.toLocaleString()}</p>
+                    <p>24h Volume: $${crypto.total_volume.toLocaleString()}</p>
+                    <p>Circulating Supply: ${crypto.circulating_supply.toLocaleString()} ${crypto.symbol.toUpperCase()}</p>
+                    <p>Max Supply: ${
+                      crypto.max_supply
+                        ? crypto.max_supply.toLocaleString()
+                        : "N/A"
+                    } ${crypto.symbol.toUpperCase()}</p>
+                </div>
+                <div class="bg-gray-700 p-4 rounded-lg">
+                    <h4 class="text-xl font-semibold mb-2">Additional Info</h4>
+                    <p>All-Time High: $${crypto.ath.toLocaleString()} (${new Date(
+          crypto.ath_date
+        ).toLocaleDateString()})</p>
+                    <p>All-Time Low: $${crypto.atl.toLocaleString()} (${new Date(
+          crypto.atl_date
+        ).toLocaleDateString()})</p>
+                    <p>Last Updated: ${new Date(
+                      crypto.last_updated
+                    ).toLocaleString()}</p>
+                </div>
+            `;
+
+        detailsPanel.classList.remove("hidden");
+      }
+
+      function getColorClass(value) {
+        return value >= 0 ? "text-green-500" : "text-red-500";
+      }
+
+      function showCorrelationDetails(correlationData) {
+        const detailsPanel = document.getElementById("detailsPanel");
+        const detailsContent = document.getElementById("detailsContent");
+
+        detailsContent.innerHTML = `
+    <h3 class="text-xl font-semibold mb-2">Correlation Details</h3>
+    <p>${correlationData.x} to ${correlationData.y}</p>
+    <p>Correlation: ${correlationData.correlation.toFixed(4)}</p>
+    <p>Strength: ${getCorrelationStrength(correlationData.correlation)}</p>
+`;
+
+        detailsPanel.classList.remove("hidden");
+      }
+
+      function getCorrelationStrength(correlation) {
+        const absCorrelation = Math.abs(correlation);
+        if (absCorrelation >= 0.7) return "Strong";
+        if (absCorrelation >= 0.5) return "Moderate";
+        if (absCorrelation >= 0.3) return "Weak";
+        return "Very weak";
+      }
+
+      async function main() {
+        showLoader();
+        try {
+          cryptoData = await fetchCryptoData();
+          await initializeDashboard();
+        } catch (error) {
+          console.error("Error fetching data:", error);
+        } finally {
+          hideLoader();
+        }
+      }
+
+      main();
+    </script>
+  </body>
+</html>
