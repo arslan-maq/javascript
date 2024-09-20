@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NASA APOD Explorer</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css"
+    />
+    <style>
+      body {
+        font-family: "Arial", sans-serif;
+        background: #000;
+        color: #fff;
+        margin: 0;
+        padding: 0;
+      }
+      .container {
+        max-width: 1200px;
+        margin: auto;
+        padding: 20px;
+      }
+      .gallery,
+      .timeline,
+      .word-cloud,
+      .chart {
+        margin-top: 20px;
+      }
+      .gallery img {
+        width: 100%;
+        max-width: 300px;
+        height: auto;
+        cursor: pointer;
+      }
+      .loader {
+        border: 16px solid #f3f3f3;
+        border-top: 16px solid #3498db;
+        border-radius: 50%;
+        width: 120px;
+        height: 120px;
+        animation: spin 2s linear infinite;
+        margin: 20px auto;
+      }
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+      #favorites {
+        position: fixed;
+        right: 10px;
+        top: 10px;
+        background: rgba(0, 0, 0, 0.7);
+        padding: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>NASA APOD Explorer</h1>
+      <input type="date" id="datePicker" />
+      <button onclick="loadRandomImage()">Random</button>
+      <input type="text" id="searchInput" placeholder="Search..." />
+      <button onclick="searchAPOD()">Search</button>
+      <label
+        >Items per page:
+        <input
+          type="number"
+          id="itemsPerPage"
+          value="10"
+          min="1"
+          onchange="updateGallery()"
+      /></label>
+      <div id="loader" class="loader" style="display: none"></div>
+      <div id="gallery" class="gallery"></div>
+      <div id="timeline" class="timeline"></div>
+      <div id="wordCloud" class="word-cloud"></div>
+      <div id="imageTypeChart" class="chart"></div>
+    </div>
+
+    <div id="favorites">
+      <h3>Favorites <i class="fas fa-star"></i></h3>
+      <div id="favoritesList"></div>
+    </div>
+
+    <div
+      id="modal"
+      style="
+        display: none;
+        position: fixed;
+        z-index: 1;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0, 0, 0, 0.9);
+      "
+    >
+      <img
+        id="modalImg"
+        style="margin: auto; display: block; width: 80%; max-width: 700px"
+      />
+      <div
+        id="modalCaption"
+        style="color: #ccc; padding: 10px 0; text-align: center"
+      ></div>
+      <span
+        onclick="document.getElementById('modal').style.display='none'"
+        style="
+          position: absolute;
+          top: 15px;
+          right: 35px;
+          color: #f1f1f1;
+          font-size: 40px;
+          font-weight: bold;
+          cursor: pointer;
+        "
+        >&times;</span
+      >
+    </div>
+
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script>
+      const apiUrl =
+        "https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY&count=";
+      let apodData = [];
+      let currentPage = 1;
+      const itemsPerPage = 10;
+
+      function fetchAPOD(count = 10) {
+        document.getElementById("loader").style.display = "block";
+        fetch(`${apiUrl}${count}`)
+          .then((response) => response.json())
+          .then((data) => {
+            apodData = data;
+            updateGallery();
+            document.getElementById("loader").style.display = "none";
+          })
+          .catch((error) => console.error("Error:", error));
+      }
+
+      function updateGallery() {
+        const gallery = document.getElementById("gallery");
+        gallery.innerHTML = "";
+        const start = (currentPage - 1) * itemsPerPage;
+        const end =
+          start + parseInt(document.getElementById("itemsPerPage").value);
+        apodData.slice(start, end).forEach((item) => {
+          const img = document.createElement("img");
+          img.src = item.url;
+          img.onclick = () => openModal(item);
+          img.onload = () => {
+            if (img.height > img.width) {
+              img.style.maxHeight = "300px";
+              img.style.width = "auto";
+            }
+          };
+          gallery.appendChild(img);
+        });
+      }
+
+      function openModal(item) {
+        document.getElementById("modalImg").src = item.hdurl || item.url;
+        document.getElementById("modalCaption").innerText =
+          item.title + ": " + item.explanation;
+        document.getElementById("modal").style.display = "block";
+      }
+
+      function loadRandomImage() {
+        const randomDate = new Date(
+          +new Date() - Math.floor(Math.random() * 1e11)
+        )
+          .toISOString()
+          .split("T")[0];
+        fetchAPOD(1, randomDate);
+      }
+
+      function searchAPOD() {
+        const query = document.getElementById("searchInput").value;
+        const results = apodData.filter(
+          (item) =>
+            item.title.toLowerCase().includes(query.toLowerCase()) ||
+            item.explanation.toLowerCase().includes(query.toLowerCase())
+        );
+        apodData = results; // Update apodData for gallery display
+        updateGallery();
+      }
+
+      function saveToFavorites(item) {
+        let favorites = JSON.parse(
+          localStorage.getItem("apodFavorites") || "[]"
+        );
+        if (!favorites.some((fav) => fav.date === item.date)) {
+          favorites.push(item);
+          localStorage.setItem("apodFavorites", JSON.stringify(favorites));
+          updateFavoritesDisplay();
+        }
+      }
+
+      function updateFavoritesDisplay() {
+        const list = document.getElementById("favoritesList");
+        list.innerHTML = "";
+        JSON.parse(localStorage.getItem("apodFavorites") || "[]").forEach(
+          (fav) => {
+            const favItem = document.createElement("div");
+            favItem.innerText = fav.title;
+            favItem.onclick = () => openModal(fav);
+            list.appendChild(favItem);
+          }
+        );
+      }
+
+      // Visualization functions
+      function createTimeline() {
+        // Implementation for timeline using D3.js
+        // This would visualize APOD entries over time
+      }
+
+      function createWordCloud() {
+        const words = apodData.flatMap((data) =>
+          data.explanation
+            .split(" ")
+            .map((word) => word.replace(/[^a-zA-Z]/g, ""))
+        );
+        const wordFrequency = d3
+          .rollups(
+            words,
+            (v) => v.length,
+            (d) => d
+          )
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 100);
+
+        const svg = d3
+          .select("#wordCloud")
+          .append("svg")
+          .attr("width", 600)
+          .attr("height", 400)
+          .append("g")
+          .attr("transform", "translate(300,200)");
+
+        const layout = d3.layout
+          .cloud()
+          .size([600, 400])
+          .words(
+            wordFrequency.map((d) => ({ text: d[0], size: 10 + d[1] / 10 }))
+          )
+          .padding(5)
+          .rotate(() => ~~(Math.random() * 2) * 90)
+          .font("Impact")
+          .fontSize((d) => d.size)
+          .on("end", draw);
+
+        layout.start();
+
+        function draw(words) {
+          svg
+            .selectAll("text")
+            .data(words)
+            .enter()
+            .append("text")
+            .style("font-size", (d) => d.size + "px")
+            .style("font-family", "Impact")
+            .style(
+              "fill",
+              () => d3.schemeCategory10[Math.floor(Math.random() * 10)]
+            )
+            .attr("text-anchor", "middle")
+            .attr(
+              "transform",
+              (d) => "translate(" + [d.x, d.y] + ")rotate(" + d.rotate + ")"
+            )
+            .text((d) => d.text);
+        }
+      }
+
+      function createImageTypeChart() {
+        // Implementation for chart showing distribution of image types
+        // This would use D3.js to create a pie or bar chart
+      }
+
+      // Initial fetch and setup
+      fetchAPOD();
+      createTimeline();
+      createWordCloud();
+      createImageTypeChart();
+      updateFavoritesDisplay();
+    </script>
+  </body>
+</html>

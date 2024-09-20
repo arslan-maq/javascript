@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Astronomy Dashboard</title>
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+    />
+    <style>
+      body {
+        font-family: "Arial", sans-serif;
+      }
+      .loader {
+        border: 16px solid #f3f3f3;
+        border-top: 16px solid #3498db;
+        border-radius: 50%;
+        width: 120px;
+        height: 120px;
+        animation: spin 2s linear infinite;
+        margin: 20px auto;
+      }
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+      #gallery,
+      #timeline,
+      #wordCloud,
+      #typeChart {
+        margin: 20px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Astronomy Picture of the Day Explorer</h1>
+      <div id="loader" class="loader" style="display: none"></div>
+      <div id="content">
+        <!-- Search and Filters -->
+        <input
+          type="text"
+          id="search"
+          placeholder="Search for celestial objects..."
+        />
+        <button onclick="searchAPOD()">Search</button>
+        <select id="filterCount" onchange="updateGallery()">
+          <option value="10">Show 10</option>
+          <option value="20">Show 20</option>
+          <option value="50">Show 50</option>
+        </select>
+
+        <!-- Gallery -->
+        <div id="gallery"></div>
+
+        <!-- Timeline, Word Cloud, Type Chart -->
+        <div id="visualizations">
+          <div id="timeline"></div>
+          <div id="wordCloud"></div>
+          <div id="typeChart"></div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://d3js.org/d3.v6.min.js"></script>
+    <script>
+      // JavaScript and D3.js code will go here
+      let apodData = [];
+      const loader = document.getElementById("loader");
+      const content = document.getElementById("content");
+
+      function showLoader() {
+        loader.style.display = "block";
+        content.style.display = "none";
+      }
+      function hideLoader() {
+        loader.style.display = "none";
+        content.style.display = "block";
+      }
+
+      async function fetchAPOD(startDate, endDate) {
+        showLoader();
+        try {
+          let response = await fetch(
+            `https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY&start_date=${startDate}&end_date=${endDate}`
+          );
+          let data = await response.json();
+          apodData = data;
+          updateGallery();
+          updateVisualizations();
+        } catch (error) {
+          console.error("Failed to fetch APOD:", error);
+        } finally {
+          hideLoader();
+        }
+      }
+
+      function updateGallery() {
+        const gallery = document.getElementById("gallery");
+        gallery.innerHTML = "";
+        const count = document.getElementById("filterCount").value;
+        apodData.slice(0, count).forEach((item) => {
+          const div = document.createElement("div");
+          div.innerHTML = `<img src="${item.url}" alt="${item.title}" style="width:100px; height:100px; object-fit:cover;" onclick="showDetails('${item.date}')">`;
+          gallery.appendChild(div);
+        });
+      }
+
+      function showDetails(date) {
+        const item = apodData.find((i) => i.date === date);
+        // Implement modal or detail view here
+        alert(
+          `Title: ${item.title}\nDate: ${item.date}\n\n${item.explanation}`
+        );
+      }
+
+      function updateVisualizations() {
+        // Implement D3.js visualizations for timeline, word cloud, and chart
+        // Timeline
+        const timelineSvg = d3
+          .select("#timeline")
+          .append("svg")
+          .attr("width", 500)
+          .attr("height", 100);
+        // ... D3 code for timeline ...
+
+        // Word Cloud
+        // ... D3 word cloud setup ...
+
+        // Type Chart
+        // ... D3 bar chart or pie chart for image types ...
+      }
+
+      function searchAPOD() {
+        const query = document.getElementById("search").value;
+        // Filter apodData based on query in title or explanation
+        const results = apodData.filter(
+          (item) =>
+            item.title.toLowerCase().includes(query.toLowerCase()) ||
+            item.explanation.toLowerCase().includes(query.toLowerCase())
+        );
+        // Update gallery with results or show no results message
+      }
+
+      // Initial fetch for last 30 days
+      fetchAPOD("2023-01-01", "2023-01-30");
+
+      // LocalStorage for favorites
+      function saveFavorite(date) {
+        let favorites = JSON.parse(localStorage.getItem("favorites") || "[]");
+        if (!favorites.includes(date)) {
+          favorites.push(date);
+          localStorage.setItem("favorites", JSON.stringify(favorites));
+        }
+      }
+
+      function loadFavorites() {
+        return JSON.parse(localStorage.getItem("favorites") || "[]");
+      }
+    </script>
+  </body>
+</html>
