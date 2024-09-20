@@ -7,27 +7,81 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/6.7.0/d3.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: "#6366F1",
+              secondary: "#EC4899",
+              accent: "#8B5CF6",
+              background: "#F0F9FF",
+              card: "#FFFFFF",
+              text: "#1E293B",
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap");
+
+      body {
+        font-family: "Poppins", sans-serif;
+      }
+
+      .gradient-bg {
+        background: linear-gradient(135deg, #6366f1 0%, #ec4899 100%);
+      }
+
+      .card {
+        transition: all 0.3s ease-in-out;
+      }
+
+      .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(99, 102, 241, 0.1);
+      }
+
+      select {
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236366F1'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 0.5rem center;
+        background-size: 1.5em 1.5em;
+        padding-right: 2.5rem;
+      }
+
+      .keyword-tag {
+        transition: all 0.2s ease-in-out;
+      }
+
+      .keyword-tag:hover {
+        transform: scale(1.05);
+      }
+    </style>
   </head>
-  <body class="bg-gray-100 font-sans">
-    <header class="bg-indigo-600 text-white p-4 shadow-md">
+  <body class="bg-background text-text font-sans">
+    <header class="gradient-bg text-white p-6 shadow-lg">
       <div class="container mx-auto">
-        <h1 class="text-3xl font-bold">Research Article Visualizer</h1>
+        <h1 class="text-4xl font-bold">Research Article Visualizer</h1>
+        <p class="mt-2 text-indigo-100">Explore and analyze research trends</p>
       </div>
     </header>
 
-    <main class="container mx-auto mt-8 px-4">
-      <div class="bg-white rounded-lg shadow-md p-6 mb-8">
-        <h2 class="text-2xl font-semibold mb-4">Filters</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <main class="container mx-auto mt-12 px-4">
+      <div class="bg-card rounded-xl shadow-md p-8 mb-12 card">
+        <h2 class="text-3xl font-semibold mb-6 text-primary">Filters</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label
               for="authorFilter"
-              class="block text-sm font-medium text-gray-700 mb-1"
+              class="block text-sm font-medium text-gray-700 mb-2"
               >Filter by Author:</label
             >
             <select
               id="authorFilter"
-              class="w-full p-2 border border-gray-300 rounded-md"
+              class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
             >
               <option value="all">All Authors</option>
             </select>
@@ -35,12 +89,12 @@
           <div>
             <label
               for="keywordFilter"
-              class="block text-sm font-medium text-gray-700 mb-1"
+              class="block text-sm font-medium text-gray-700 mb-2"
               >Filter by Keyword:</label
             >
             <select
               id="keywordFilter"
-              class="w-full p-2 border border-gray-300 rounded-md"
+              class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
             >
               <option value="all">All Keywords</option>
             </select>
@@ -48,26 +102,32 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        <div class="bg-white rounded-lg shadow-md p-6">
-          <h2 class="text-2xl font-semibold mb-4">Interactive Graph</h2>
-          <div id="graph" class="w-full h-96"></div>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-12">
+        <div class="bg-card rounded-xl shadow-md p-8 card">
+          <h2 class="text-3xl font-semibold mb-6 text-primary">
+            Interactive Graph
+          </h2>
+          <div id="graph" class="w-full h-96 bg-background rounded-lg"></div>
         </div>
-        <div class="bg-white rounded-lg shadow-md p-6">
-          <h2 class="text-2xl font-semibold mb-4">Keyword Cloud</h2>
-          <div id="keyword-cloud" class="flex flex-wrap gap-2"></div>
+        <div class="bg-card rounded-xl shadow-md p-8 card">
+          <h2 class="text-3xl font-semibold mb-6 text-primary">
+            Keyword Cloud
+          </h2>
+          <div id="keyword-cloud" class="flex flex-wrap gap-3"></div>
         </div>
       </div>
 
-      <div class="bg-white rounded-lg shadow-md p-6 mb-8">
-        <h2 class="text-2xl font-semibold mb-4">Interactive Timeline</h2>
+      <div class="bg-card rounded-xl shadow-md p-8 mb-12 card">
+        <h2 class="text-3xl font-semibold mb-6 text-primary">
+          Interactive Timeline
+        </h2>
         <div class="w-full h-96">
           <canvas id="timelineChart"></canvas>
         </div>
       </div>
     </main>
 
-    <footer class="bg-gray-800 text-white py-4 mt-8">
+    <footer class="bg-text text-white py-6 mt-12">
       <div class="container mx-auto text-center">
         <p>&copy; 2024 Research Article Visualizer. All rights reserved.</p>
       </div>
@@ -315,7 +375,9 @@
         updateTimeline(filteredArticles);
       }
 
-      // Create Keyword Cloud
+      let timelineChart = null;
+
+      // Update the updateKeywordCloud function
       function updateKeywordCloud(filteredData) {
         const keywordCloud = document.getElementById("keyword-cloud");
         keywordCloud.innerHTML = ""; // Clear previous data
@@ -331,13 +393,12 @@
           let span = document.createElement("span");
           span.textContent = `${keyword} (${keywordFrequency[keyword]})`;
           span.className =
-            "bg-blue-100 text-blue-800 text-sm font-medium px-2.5 py-0.5 rounded";
+            "keyword-tag bg-accent bg-opacity-20 text-accent text-sm font-medium px-3 py-1 rounded-full";
           keywordCloud.appendChild(span);
         });
       }
 
-      // Create Timeline Chart
-      let timelineChart = null;
+      // Update the updateTimeline function
       function updateTimeline(filteredData) {
         const timelineCtx = document
           .getElementById("timelineChart")
@@ -363,12 +424,13 @@
               {
                 label: "Articles Published",
                 data: articleCountPerYear,
-                backgroundColor: "rgba(99, 102, 241, 0.2)",
-                borderColor: "rgba(99, 102, 241, 1)",
-                borderWidth: 2,
-                pointBackgroundColor: "rgba(99, 102, 241, 1)",
-                pointRadius: 4,
-                pointHoverRadius: 6,
+                backgroundColor: "rgba(236, 72, 153, 0.2)",
+                borderColor: "rgba(236, 72, 153, 1)",
+                borderWidth: 3,
+                pointBackgroundColor: "rgba(236, 72, 153, 1)",
+                pointRadius: 6,
+                pointHoverRadius: 8,
+                tension: 0.3,
               },
             ],
           },
@@ -381,12 +443,30 @@
                 title: {
                   display: true,
                   text: "Number of Articles",
+                  font: {
+                    size: 14,
+                    weight: "bold",
+                  },
+                },
+                ticks: {
+                  font: {
+                    size: 12,
+                  },
                 },
               },
               x: {
                 title: {
                   display: true,
                   text: "Publication Year",
+                  font: {
+                    size: 14,
+                    weight: "bold",
+                  },
+                },
+                ticks: {
+                  font: {
+                    size: 12,
+                  },
                 },
               },
             },
@@ -398,7 +478,12 @@
                 display: true,
                 text: "Articles Published Over Time",
                 font: {
-                  size: 16,
+                  size: 18,
+                  weight: "bold",
+                },
+                padding: {
+                  top: 10,
+                  bottom: 20,
                 },
               },
             },
@@ -406,7 +491,7 @@
         });
       }
 
-      // Create Interactive Graph using D3.js
+      // Update the updateGraph function
       function updateGraph(filteredData) {
         document.getElementById("graph").innerHTML = ""; // Clear the previous graph
 
@@ -445,7 +530,7 @@
             "link",
             d3.forceLink(links).id((d) => d.id)
           )
-          .force("charge", d3.forceManyBody().strength(-200))
+          .force("charge", d3.forceManyBody().strength(-300))
           .force("center", d3.forceCenter(width / 2, height / 2));
 
         const link = svg
@@ -455,8 +540,8 @@
           .data(links)
           .enter()
           .append("line")
-          .attr("stroke-width", 1)
-          .attr("stroke", "#9CA3AF");
+          .attr("stroke-width", 2)
+          .attr("stroke", "#EC4899");
 
         const node = svg
           .append("g")
@@ -465,8 +550,8 @@
           .data(nodes)
           .enter()
           .append("circle")
-          .attr("r", 5)
-          .attr("fill", "#4F46E5")
+          .attr("r", 8)
+          .attr("fill", "#6366F1")
           .call(
             d3
               .drag()
