@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Global Earthquake Monitor</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+    />
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap");
+
+      body {
+        font-family: "Roboto", sans-serif;
+        background-color: #2c3e50;
+        color: #ecf0f1;
+      }
+
+      .logo-container {
+        position: relative;
+        width: 50px;
+        height: 50px;
+        overflow: hidden;
+      }
+
+      .logo {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        background-color: #e74c3c;
+        clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+        animation: quake 0.5s ease-in-out infinite alternate;
+      }
+
+      @keyframes quake {
+        0% {
+          transform: translateX(-2px) rotate(-1deg);
+        }
+        100% {
+          transform: translateX(2px) rotate(1deg);
+        }
+      }
+
+      #map {
+        height: 500px;
+        border-radius: 8px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+      }
+
+      .loader {
+        border-top-color: #e74c3c;
+        animation: spinner 1.5s linear infinite;
+      }
+
+      @keyframes spinner {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      .card {
+        background-color: #34495e;
+        border-radius: 8px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        transition: all 0.3s ease;
+      }
+
+      .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+      }
+
+      .btn {
+        transition: all 0.3s ease;
+      }
+
+      .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+      }
+
+      .table-row {
+        transition: background-color 0.3s ease;
+      }
+
+      .table-row:hover {
+        background-color: #2980b9;
+      }
+
+      .earthquake-pulse {
+        position: absolute;
+        width: 20px;
+        height: 20px;
+        background-color: rgba(231, 76, 60, 0.6);
+        border-radius: 50%;
+        animation: pulse 1.5s ease-out infinite;
+      }
+
+      @keyframes pulse {
+        0% {
+          transform: scale(0);
+          opacity: 1;
+        }
+        100% {
+          transform: scale(4);
+          opacity: 0;
+        }
+      }
+    </style>
+  </head>
+  <body class="text-gray-100">
+    <header
+      class="bg-gradient-to-r from-red-800 to-orange-600 p-6 relative overflow-hidden"
+    >
+      <div class="container mx-auto flex items-center">
+        <div class="logo-container mr-4">
+          <div class="logo"></div>
+        </div>
+        <div>
+          <h1 class="text-4xl font-bold">Global Earthquake Monitor</h1>
+          <p class="mt-2 text-red-200">Real-time seismic activity tracking</p>
+        </div>
+      </div>
+      <div class="earthquake-pulse" style="top: 20%; left: 10%"></div>
+      <div class="earthquake-pulse" style="top: 70%; left: 80%"></div>
+      <div class="earthquake-pulse" style="top: 40%; left: 60%"></div>
+    </header>
+
+    <main class="container mx-auto p-6">
+      <div
+        id="loader"
+        class="fixed top-0 left-0 right-0 bottom-0 w-full h-screen z-50 overflow-hidden bg-gray-900 opacity-75 flex flex-col items-center justify-center"
+      >
+        <div
+          class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12 mb-4"
+        ></div>
+        <h2 class="text-center text-white text-xl font-semibold">Loading...</h2>
+        <p class="w-1/3 text-center text-white">
+          Scanning the Earth's crust...
+        </p>
+      </div>
+
+      <div class="card p-6 mb-8 bg-gradient-to-br from-gray-800 to-gray-900">
+        <h2 class="text-2xl font-semibold mb-4 text-red-400">
+          Earthquake Filters
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div>
+            <label
+              for="magnitudeRange"
+              class="block mb-2 font-medium text-red-300"
+              >Magnitude Range:</label
+            >
+            <input
+              type="range"
+              id="magnitudeRange"
+              min="0"
+              max="10"
+              step="0.1"
+              class="w-full"
+            />
+            <span id="magnitudeValue" class="text-red-400 font-medium"></span>
+          </div>
+          <div>
+            <label for="timePeriod" class="block mb-2 font-medium text-red-300"
+              >Time Period:</label
+            >
+            <select
+              id="timePeriod"
+              class="w-full p-2 border rounded-md bg-gray-700 text-white"
+            >
+              <option value="1">Last 1 day</option>
+              <option value="3">Last 3 days</option>
+              <option value="5">Last 5 days</option>
+              <option value="7" selected>Last 7 days</option>
+            </select>
+          </div>
+          <div>
+            <label for="searchInput" class="block mb-2 font-medium text-red-300"
+              >Search:</label
+            >
+            <input
+              type="text"
+              id="searchInput"
+              placeholder="Search by place or title"
+              class="w-full p-2 border rounded-md bg-gray-700 text-white"
+            />
+          </div>
+          <div class="flex items-end">
+            <button
+              id="applyFilters"
+              class="btn bg-red-600 hover:bg-red-700 mb-2 text-white font-bold py-2 px-4 rounded-md w-full transform hover:scale-105 transition-transform duration-200"
+            >
+              Apply Filters
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+        <div class="card p-6 bg-gradient-to-br from-gray-800 to-gray-900">
+          <h2 class="text-2xl font-semibold mb-4 text-red-400">
+            Earthquake Map
+          </h2>
+          <div id="map"></div>
+        </div>
+        <div class="card p-6 bg-gradient-to-br from-gray-800 to-gray-900">
+          <h2 class="text-2xl font-semibold mb-4 text-red-400">
+            Magnitude Distribution
+          </h2>
+          <canvas id="magnitudeHistogram"></canvas>
+        </div>
+      </div>
+
+      <div class="card p-6 mb-8 bg-gradient-to-br from-gray-800 to-gray-900">
+        <h2 class="text-2xl font-semibold mb-4 text-red-400">
+          Earthquake Frequency
+        </h2>
+        <div id="timeSeriesChartContainer" style="height: 40vh">
+          <canvas id="timeSeriesChart"></canvas>
+        </div>
+      </div>
+
+      <div class="card p-6 bg-gradient-to-br from-gray-800 to-gray-900">
+        <h2 class="text-2xl font-semibold mb-4 text-red-400">
+          Recent Earthquakes
+        </h2>
+        <div class="overflow-x-auto">
+          <table id="earthquakeTable" class="min-w-full bg-gray-800">
+            <thead class="bg-gray-700">
+              <tr>
+                <th class="px-4 py-2 cursor-pointer text-left text-red-300">
+                  Time
+                </th>
+                <th class="px-4 py-2 cursor-pointer text-left text-red-300">
+                  Magnitude
+                </th>
+                <th class="px-4 py-2 cursor-pointer text-left text-red-300">
+                  Depth
+                </th>
+                <th class="px-4 py-2 text-left text-red-300">Location</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+            <tfoot>
+              <tr>
+                <td colspan="4" class="px-4 py-2">
+                  <div class="flex justify-between items-center">
+                    <div>
+                      <label for="entriesPerPage" class="text-red-300"
+                        >Show entries:</label
+                      >
+                      <select
+                        id="entriesPerPage"
+                        class="ml-2 p-2 border rounded-md bg-gray-700 text-white"
+                      >
+                        <option value="10">10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                      </select>
+                    </div>
+                    <div id="pagination" class="flex space-x-2"></div>
+                  </div>
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </main>
+
+    <footer class="bg-gray-900 text-white p-6 mt-12">
+      <div class="container mx-auto text-center">
+        <p>&copy; 2024 Global Earthquake Monitor. Data provided by USGS.</p>
+        <p class="mt-2 text-red-400">Stay informed, stay safe.</p>
+      </div>
+    </footer>
+
+    <!-- Modal -->
+    <div id="detailModal" class="fixed z-10 inset-0 overflow-y-auto hidden">
+      <div
+        class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0"
+      >
+        <div class="fixed inset-0 transition-opacity" aria-hidden="true">
+          <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+        </div>
+        <span
+          class="hidden sm:inline-block sm:align-middle sm:h-screen"
+          aria-hidden="true"
+          >&#8203;</span
+        >
+        <div
+          class="inline-block align-bottom bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full"
+        >
+          <div class="bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+            <h3
+              class="text-lg leading-6 font-medium text-red-400 mb-2"
+              id="modalTitle"
+            ></h3>
+            <div class="mt-2 grid grid-cols-2 gap-4" id="modalContent"></div>
+          </div>
+          <div
+            class="bg-gray-900 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse"
+          >
+            <button
+              type="button"
+              class="btn w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm"
+              id="closeModal"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Global variables
+      let map, earthquakeData, timeSeriesChart, magnitudeHistogram;
+      let currentPage = 1;
+      let entriesPerPage = 10;
+      let filteredData = [];
+
+      let mapLayers = {
+        street: L.tileLayer(
+          "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+          {
+            attribution: "&copy; OpenStreetMap contributors",
+          }
+        ),
+        satellite: L.tileLayer(
+          "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+          {
+            attribution:
+              "Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community",
+          }
+        ),
+      };
+
+      // Fetch earthquake data from USGS API
+      async function fetchEarthquakeData() {
+        try {
+          const response = await fetch(
+            "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson"
+          );
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          const data = await response.json();
+          return data.features;
+        } catch (error) {
+          console.error("Could not fetch earthquake data:", error);
+          alert("Failed to fetch earthquake data. Please try again later.");
+          return [];
+        }
+      }
+
+      // Initialize the application
+      async function initApp() {
+        showLoader();
+        earthquakeData = await fetchEarthquakeData();
+        filteredData = earthquakeData;
+        if (earthquakeData.length > 0) {
+          initMap();
+          createTimeSeriesChart();
+          createMagnitudeHistogram();
+          initFilters();
+          initPagination();
+          populateDataTable();
+        }
+        hideLoader();
+      }
+
+      // Initialize the map
+      function initMap() {
+        map = L.map("map", {
+          layers: [mapLayers.street],
+        }).setView([0, 0], 2);
+
+        L.control
+          .layers({
+            "Street View": mapLayers.street,
+            Satellite: mapLayers.satellite,
+          })
+          .addTo(map);
+
+        addEarthquakeMarkers();
+      }
+
+      // Add earthquake markers to the map
+      function addEarthquakeMarkers() {
+        const markers = L.layerGroup();
+        filteredData.forEach((quake) => {
+          const coords = quake.geometry.coordinates;
+          const magnitude = quake.properties.mag;
+          const depth = coords[2];
+          const circle = L.circleMarker([coords[1], coords[0]], {
+            radius: magnitude * 2,
+            fillColor: getDepthColor(depth),
+            color: "#000",
+            weight: 1,
+            opacity: 1,
+            fillOpacity: 0.8,
+          });
+
+          circle.bindPopup(createPopupContent(quake));
+          markers.addLayer(circle);
+        });
+        markers.addTo(map);
+      }
+
+      // Create time series chart
+      function createTimeSeriesChart() {
+        const ctx = document.getElementById("timeSeriesChart").getContext("2d");
+        const data = processTimeSeriesData();
+
+        if (timeSeriesChart) {
+          timeSeriesChart.destroy();
+        }
+
+        timeSeriesChart = new Chart(ctx, {
+          type: "line",
+          data: {
+            labels: data.labels,
+            datasets: [
+              {
+                label: "All Earthquakes",
+                data: data.counts.all,
+                borderColor: "#e74c3c",
+                backgroundColor: "rgba(231, 76, 60, 0.1)",
+                tension: 0.1,
+              },
+              {
+                label: "Magnitude 0-2",
+                data: data.counts.low,
+                borderColor: "#f39c12",
+                backgroundColor: "rgba(243, 156, 18, 0.1)",
+                tension: 0.1,
+              },
+              {
+                label: "Magnitude 2-4",
+                data: data.counts.medium,
+                borderColor: "#27ae60",
+                backgroundColor: "rgba(39, 174, 96, 0.1)",
+                tension: 0.1,
+              },
+              {
+                label: "Magnitude 4+",
+                data: data.counts.high,
+                borderColor: "#3498db",
+                backgroundColor: "rgba(52, 152, 219, 0.1)",
+                tension: 0.1,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                labels: {
+                  color: "#ecf0f1",
+                },
+              },
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                title: {
+                  display: true,
+                  text: "Number of Earthquakes",
+                  color: "#ecf0f1",
+                },
+                ticks: {
+                  color: "#ecf0f1",
+                },
+                grid: {
+                  color: "rgba(255, 255, 255, 0.1)",
+                },
+              },
+              x: {
+                title: {
+                  display: true,
+                  text: "Date",
+                  color: "#ecf0f1",
+                },
+                ticks: {
+                  color: "#ecf0f1",
+                },
+                grid: {
+                  color: "rgba(255, 255, 255, 0.1)",
+                },
+              },
+            },
+          },
+        });
+      }
+      // Create magnitude distribution histogram
+      function createMagnitudeHistogram() {
+        const ctx = document
+          .getElementById("magnitudeHistogram")
+          .getContext("2d");
+        const data = processMagnitudeData();
+
+        magnitudeHistogram = new Chart(ctx, {
+          type: "bar",
+          data: {
+            labels: data.labels,
+            datasets: [
+              {
+                label: "Magnitude Distribution",
+                data: data.counts,
+                backgroundColor: "rgba(75, 192, 192, 0.6)",
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: {
+                labels: {
+                  color: "#ecf0f1",
+                },
+              },
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                title: {
+                  display: true,
+                  text: "Number of Earthquakes",
+                  color: "#ecf0f1",
+                },
+                ticks: {
+                  color: "#ecf0f1",
+                },
+                grid: {
+                  color: "rgba(255, 255, 255, 0.1)",
+                },
+              },
+              x: {
+                title: {
+                  display: true,
+                  text: "Magnitude",
+                  color: "#ecf0f1",
+                },
+                ticks: {
+                  color: "#ecf0f1",
+                },
+                grid: {
+                  color: "rgba(255, 255, 255, 0.1)",
+                },
+              },
+            },
+          },
+        });
+      }
+
+      // Populate data table
+      function populateDataTable() {
+        const tableBody = document.querySelector("#earthquakeTable tbody");
+        tableBody.innerHTML = ""; // Clear the table
+
+        // Calculate the start and end index for the current page
+        const startIndex = (currentPage - 1) * entriesPerPage;
+        const endIndex = startIndex + entriesPerPage;
+
+        // Get the data for the current page
+        const pageData = filteredData.slice(startIndex, endIndex);
+
+        // Populate the table with the data for the current page
+        pageData.forEach((quake, index) => {
+          const row = document.createElement("tr");
+          row.classList.add(index % 2 === 0 ? "bg-gray-800" : "bg-gray-700");
+          row.innerHTML = `
+      <td class="px-4 py-2 text-gray-300">${new Date(
+        quake.properties.time
+      ).toLocaleString()}</td>
+      <td class="px-4 py-2 text-gray-300">${quake.properties.mag.toFixed(
+        1
+      )}</td>
+      <td class="px-4 py-2 text-gray-300">${quake.geometry.coordinates[2].toFixed(
+        1
+      )} km</td>
+      <td class="px-4 py-2 text-gray-300">${quake.properties.place}</td>
+    `;
+          row.addEventListener("click", () => showQuakeDetails(quake));
+          tableBody.appendChild(row);
+        });
+
+        // Update the pagination after the table data is populated
+        updatePagination();
+      }
+
+      // Initialize filters
+      function initFilters() {
+        const magnitudeRange = document.getElementById("magnitudeRange");
+        const magnitudeValue = document.getElementById("magnitudeValue");
+        magnitudeRange.addEventListener("input", () => {
+          magnitudeValue.textContent = magnitudeRange.value;
+        });
+        magnitudeValue.textContent = magnitudeRange.value;
+
+        document
+          .getElementById("entriesPerPage")
+          .addEventListener("change", (e) => {
+            entriesPerPage = parseInt(e.target.value);
+            currentPage = 1;
+            populateDataTable();
+          });
+
+        document
+          .getElementById("searchInput")
+          .addEventListener("input", applyFilters);
+      }
+
+      // Initialize pagination
+      function initPagination() {
+        const paginationContainer = document.getElementById("pagination");
+        paginationContainer.addEventListener("click", (e) => {
+          if (e.target.classList.contains("page-btn")) {
+            currentPage = parseInt(e.target.dataset.page);
+            populateDataTable();
+          }
+        });
+      }
+
+      function updatePagination() {
+        const paginationContainer = document.getElementById("pagination");
+        paginationContainer.innerHTML = ""; // Clear existing pagination buttons
+
+        const totalPages = Math.ceil(filteredData.length / entriesPerPage);
+        const maxVisiblePages = 5;
+
+        // Calculate the start and end page numbers for visible buttons
+        let startPage = Math.max(
+          1,
+          currentPage - Math.floor(maxVisiblePages / 2)
+        );
+        let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+        // Adjust if less than maxVisiblePages are available at the end
+        if (endPage - startPage + 1 < maxVisiblePages) {
+          startPage = Math.max(1, endPage - maxVisiblePages + 1);
+        }
+
+        // Add "..." if there are pages before the start page
+        if (startPage > 1) {
+          paginationContainer.appendChild(createPageButton(1));
+          if (startPage > 2) {
+            paginationContainer.appendChild(createEllipsis());
+          }
+        }
+
+        // Create the visible page buttons
+        for (let i = startPage; i <= endPage; i++) {
+          paginationContainer.appendChild(createPageButton(i));
+        }
+
+        // Add "..." if there are pages after the end page
+        if (endPage < totalPages) {
+          if (endPage < totalPages - 1) {
+            paginationContainer.appendChild(createEllipsis());
+          }
+          paginationContainer.appendChild(createPageButton(totalPages));
+        }
+      }
+
+      // Helper function to create individual page buttons
+      function createPageButton(pageNumber) {
+        const button = createPaginationButton(pageNumber, true);
+        button.dataset.page = pageNumber;
+        button.addEventListener("click", () => {
+          currentPage = pageNumber;
+          populateDataTable();
+        });
+        if (pageNumber === currentPage) {
+          button.classList.remove("bg-blue-500", "hover:bg-blue-600");
+          button.classList.add("bg-gray-500", "text-white");
+        }
+        return button;
+      }
+
+      // Helper function to create the ellipsis ("...")
+      function createEllipsis() {
+        const span = document.createElement("span");
+        span.textContent = "...";
+        span.classList.add("px-2", "py-1");
+        return span;
+      }
+
+      function createPaginationButton(text, enabled) {
+        const button = document.createElement("button");
+        button.textContent = text;
+        button.classList.add(
+          "page-btn",
+          "px-3",
+          "py-1",
+          "border",
+          "rounded",
+          "mx-1",
+          enabled ? "bg-blue-500" : "bg-gray-300",
+          enabled ? "text-white" : "text-gray-500",
+          enabled ? "hover:bg-blue-600" : "cursor-not-allowed"
+        );
+        button.disabled = !enabled;
+        return button;
+      }
+
+      // Helper functions
+      function getDepthColor(depth) {
+        return depth < 10
+          ? "#f00"
+          : depth < 50
+          ? "#ff0"
+          : depth < 100
+          ? "#0f0"
+          : "#00f";
+      }
+
+      function createPopupContent(quake) {
+        return `
+        <h3>${quake.properties.place}</h3>
+        <p>Magnitude: ${quake.properties.mag}</p>
+        <p>Depth: ${quake.geometry.coordinates[2]} km</p>
+        <p>Time: ${new Date(quake.properties.time).toLocaleString()}</p>
+    `;
+      }
+
+      function processTimeSeriesData() {
+        const dateMap = new Map();
+        filteredData.forEach((quake) => {
+          const date = new Date(quake.properties.time).toLocaleDateString();
+          if (!dateMap.has(date)) {
+            dateMap.set(date, { all: 0, low: 0, medium: 0, high: 0 });
+          }
+          const counts = dateMap.get(date);
+          counts.all++;
+          const mag = quake.properties.mag;
+          if (mag < 2) counts.low++;
+          else if (mag < 4) counts.medium++;
+          else counts.high++;
+        });
+
+        const sortedDates = Array.from(dateMap.keys()).sort(
+          (a, b) => new Date(a) - new Date(b)
+        );
+
+        return {
+          labels: sortedDates,
+          counts: {
+            all: sortedDates.map((date) => dateMap.get(date).all),
+            low: sortedDates.map((date) => dateMap.get(date).low),
+            medium: sortedDates.map((date) => dateMap.get(date).medium),
+            high: sortedDates.map((date) => dateMap.get(date).high),
+          },
+        };
+      }
+
+      function processMagnitudeData() {
+        const magnitudeMap = new Map();
+        filteredData.forEach((quake) => {
+          const magnitude = Math.floor(quake.properties.mag);
+          magnitudeMap.set(magnitude, (magnitudeMap.get(magnitude) || 0) + 1);
+        });
+        const sortedMagnitudes = Array.from(magnitudeMap.keys()).sort(
+          (a, b) => a - b
+        );
+        return {
+          labels: sortedMagnitudes.map(
+            (mag) => `${mag.toFixed(0)}-${(mag + 1).toFixed(0)}`
+          ),
+          counts: sortedMagnitudes.map((mag) => magnitudeMap.get(mag)),
+        };
+      }
+      function processMagnitudeData() {
+        const magnitudeMap = new Map();
+        earthquakeData.forEach((quake) => {
+          const magnitude = Math.floor(quake.properties.mag);
+          magnitudeMap.set(magnitude, (magnitudeMap.get(magnitude) || 0) + 1);
+        });
+        const sortedMagnitudes = Array.from(magnitudeMap.keys()).sort(
+          (a, b) => a - b
+        );
+        return {
+          labels: sortedMagnitudes.map(
+            (mag) => `${mag.toFixed(0)}-${(mag + 1).toFixed(0)}`
+          ),
+          counts: sortedMagnitudes.map((mag) => magnitudeMap.get(mag)),
+        };
+      }
+
+      function sortTable(column) {
+        filteredData.sort((a, b) => {
+          let aValue, bValue;
+          switch (column) {
+            case 0: // Time
+              aValue = new Date(a.properties.time);
+              bValue = new Date(b.properties.time);
+              break;
+            case 1: // Magnitude
+              aValue = a.properties.mag;
+              bValue = b.properties.mag;
+              break;
+            case 2: // Depth
+              aValue = a.geometry.coordinates[2];
+              bValue = b.geometry.coordinates[2];
+              break;
+            case 3: // Location
+              aValue = a.properties.place;
+              bValue = b.properties.place;
+              break;
+          }
+          if (aValue < bValue) return -1;
+          if (aValue > bValue) return 1;
+          return 0;
+        });
+        populateDataTable();
+      }
+
+      function showLoader() {
+        document.getElementById("loader").classList.remove("hidden");
+      }
+
+      function hideLoader() {
+        document.getElementById("loader").classList.add("hidden");
+      }
+
+      function applyFilters() {
+        const magnitudeThreshold = parseFloat(
+          document.getElementById("magnitudeRange").value
+        );
+        const timePeriod = parseInt(
+          document.getElementById("timePeriod").value
+        );
+        const searchTerm = document
+          .getElementById("searchInput")
+          .value.toLowerCase();
+
+        filteredData = earthquakeData.filter((quake) => {
+          const quakeTime = new Date(quake.properties.time);
+          const timeThreshold = new Date();
+          timeThreshold.setDate(timeThreshold.getDate() - timePeriod);
+          const matchesSearch =
+            quake.properties.place.toLowerCase().includes(searchTerm) ||
+            quake.properties.title.toLowerCase().includes(searchTerm);
+          return (
+            quake.properties.mag >= magnitudeThreshold &&
+            quakeTime >= timeThreshold &&
+            matchesSearch
+          );
+        });
+
+        currentPage = 1;
+        updateVisualizations();
+        updatePagination();
+      }
+
+      function updateVisualizations() {
+        // Update map
+        map.eachLayer((layer) => {
+          if (layer instanceof L.CircleMarker) {
+            map.removeLayer(layer);
+          }
+        });
+        addEarthquakeMarkers();
+
+        // Update time series chart
+        createTimeSeriesChart();
+
+        // Update magnitude histogram
+        const magnitudeData = processMagnitudeData();
+        magnitudeHistogram.data.labels = magnitudeData.labels;
+        magnitudeHistogram.data.datasets[0].data = magnitudeData.counts;
+        magnitudeHistogram.update();
+
+        // Update table
+        populateDataTable();
+        updatePagination();
+      }
+
+      function showQuakeDetails(quake) {
+        const modal = document.getElementById("detailModal");
+        const modalTitle = document.getElementById("modalTitle");
+        const modalContent = document.getElementById("modalContent");
+
+        modalTitle.textContent = quake.properties.place;
+        modalTitle.classList.add("text-white");
+        modalContent.innerHTML = `
+    <div class="bg-gray-700 p-2 rounded mb-2">
+      <strong class="text-gray-300">Magnitude:</strong> <span class="text-white">${
+        quake.properties.mag
+      }</span>
+    </div>
+    <div class="bg-gray-700 p-2 rounded mb-2">
+      <strong class="text-gray-300">Depth:</strong> <span class="text-white">${
+        quake.geometry.coordinates[2]
+      } km</span>
+    </div>
+    <div class="bg-gray-700 p-2 rounded mb-2">
+      <strong class="text-gray-300">Time:</strong> <span class="text-white">${new Date(
+        quake.properties.time
+      ).toLocaleString()}</span>
+    </div>
+    <div class="bg-gray-700 p-2 rounded mb-2">
+      <strong class="text-gray-300">Latitude:</strong> <span class="text-white">${
+        quake.geometry.coordinates[1]
+      }</span>
+    </div>
+    <div class="bg-gray-700 p-2 rounded mb-2">
+      <strong class="text-gray-300">Longitude:</strong> <span class="text-white">${
+        quake.geometry.coordinates[0]
+      }</span>
+    </div>
+    <div class="bg-gray-700 p-2 rounded mb-2">
+      <strong class="text-gray-300">Felt Reports:</strong> <span class="text-white">${
+        quake.properties.felt || "No data"
+      }</span>
+    </div>
+    <div class="bg-gray-700 p-2 rounded mb-2">
+      <strong class="text-gray-300">Tsunami:</strong> <span class="text-white">${
+        quake.properties.tsunami ? "Yes" : "No"
+      }</span>
+    </div>
+  `;
+
+        modal.classList.remove("hidden");
+      }
+
+      // Event listeners
+      document
+        .getElementById("applyFilters")
+        .addEventListener("click", applyFilters);
+      document
+        .getElementById("magnitudeRange")
+        .addEventListener("input", applyFilters);
+      document
+        .querySelectorAll("#earthquakeTable th")
+        .forEach((header, index) => {
+          header.addEventListener("click", () => sortTable(index));
+        });
+      document.getElementById("closeModal").addEventListener("click", () => {
+        document.getElementById("detailModal").classList.add("hidden");
+      });
+
+      // Initialize the application
+      initApp();
+    </script>
+  </body>
+</html>

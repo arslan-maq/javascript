@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Earthquake Dashboard</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+    />
+    <style>
+      #map {
+        height: 400px;
+      }
+      .loader {
+        border: 16px solid #f3f3f3;
+        border-top: 16px solid #3498db;
+        border-radius: 50%;
+        width: 120px;
+        height: 120px;
+        animation: spin 2s linear infinite;
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        margin-top: -60px;
+        margin-left: -60px;
+      }
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container mt-4">
+      <div class="loader" id="loader"></div>
+      <div id="map"></div>
+      <div class="row mt-4">
+        <div class="col-md-6">
+          <canvas id="timeSeriesChart"></canvas>
+        </div>
+        <div class="col-md-6">
+          <canvas id="magnitudeHistogram"></canvas>
+        </div>
+      </div>
+      <div class="mt-4">
+        <input type="text" id="search" placeholder="Search earthquakes..." />
+        <input
+          type="range"
+          min="0"
+          max="10"
+          step="0.1"
+          id="magnitudeFilter"
+          value="0"
+        />
+        <label for="magnitudeFilter"
+          >Magnitude: <span id="magValue">0+</span></label
+        >
+      </div>
+      <table class="table table-striped" id="earthquakeTable">
+        <!-- Table will be populated here -->
+      </table>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const loader = document.getElementById("loader");
+        const mapDiv = document.getElementById("map");
+        const magFilter = document.getElementById("magnitudeFilter");
+        const magValueDisplay = document.getElementById("magValue");
+        let map,
+          earthquakesLayer,
+          earthquakesData = [];
+
+        function showLoader(show) {
+          loader.style.display = show ? "block" : "none";
+        }
+
+        async function fetchEarthquakeData() {
+          showLoader(true);
+          try {
+            const response = await fetch(
+              "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson"
+            );
+            const data = await response.json();
+            earthquakesData = data.features;
+            updateVisualizations();
+          } catch (error) {
+            console.error("Failed to fetch data:", error);
+          } finally {
+            showLoader(false);
+          }
+        }
+
+        function updateVisualizations() {
+          if (!map) initMap();
+          updateMap();
+          updateCharts();
+          updateTable();
+        }
+
+        function initMap() {
+          map = L.map("map").setView([0, 0], 2);
+          L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            attribution: "&copy; OpenStreetMap contributors",
+          }).addTo(map);
+
+          earthquakesLayer = L.layerGroup().addTo(map);
+        }
+
+        function updateMap() {
+          earthquakesLayer.clearLayers();
+          earthquakesData.forEach((feature) => {
+            const mag = feature.properties.mag;
+            const depth = feature.geometry.coordinates[2];
+            const color = depthColor(depth);
+            const radius = mag * 3;
+
+            const marker = L.circleMarker(
+              [
+                feature.geometry.coordinates[1],
+                feature.geometry.coordinates[0],
+              ],
+              {
+                radius: radius,
+                fillColor: color,
+                color: "#000",
+                weight: 1,
+                opacity: 1,
+                fillOpacity: 0.8,
+              }
+            ).bindPopup(`Magnitude: ${mag}<br>Depth: ${depth} km`);
+
+            marker.on("click", function (e) {
+              // Here you could open a detailed modal or side panel with more info
+            });
+
+            earthquakesLayer.addLayer(marker);
+          });
+        }
+
+        function depthColor(depth) {
+          if (depth < 70) return "#00FF00"; // Shallow - Green
+          else if (depth < 300) return "#FFA500"; // Medium - Orange
+          else return "#FF0000"; // Deep - Red
+        }
+
+        function updateCharts() {
+          const ctxTimeSeries = document
+            .getElementById("timeSeriesChart")
+            .getContext("2d");
+          const ctxMagnitude = document
+            .getElementById("magnitudeHistogram")
+            .getContext("2d");
+
+          // Implementation of Chart.js for time series and histogram would go here
+          // This requires processing earthquakesData into suitable formats for Chart.js
+        }
+
+        function updateTable() {
+          const table = document.getElementById("earthquakeTable");
+          // Clear existing rows and populate with sorted, filtered data
+          // Add sorting functionality to headers
+        }
+
+        magFilter.addEventListener("input", function () {
+          magValueDisplay.textContent = this.value + "+";
+          updateVisualizations();
+        });
+
+        fetchEarthquakeData();
+      });
+    </script>
+  </body>
+</html>
