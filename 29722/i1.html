@@ -494,7 +494,7 @@
                     );
                     return countryData ? countryData[metric] : 0;
                   }),
-            backgroundColor: getRandomColor(0.6),
+            backgroundColor: getRandomColor(1),
             borderColor: getRandomColor(1),
             borderWidth: 1,
           })),
@@ -514,7 +514,7 @@
                     x: country[selectedMetrics[0]],
                     y: country[metric],
                   })),
-                  backgroundColor: getRandomColor(0.6),
+                  backgroundColor: getRandomColor(1),
                   borderColor: getRandomColor(1),
                   borderWidth: 1,
                 }))
@@ -530,7 +530,7 @@
                         y: countryData ? countryData[selectedMetrics[1]] : 0,
                       };
                     }),
-                    backgroundColor: getRandomColor(0.6),
+                    backgroundColor: getRandomColor(1),
                     borderColor: getRandomColor(1),
                     borderWidth: 1,
                   },
@@ -566,7 +566,7 @@
                 data: filteredCountries.map(
                   (country) => country[selectedMetrics[0]]
                 ),
-                backgroundColor: getRandomColor(0.6),
+                backgroundColor: getRandomColor(1),
                 borderColor: getRandomColor(1),
                 borderWidth: 1,
               },
@@ -597,9 +597,12 @@
 
       // Get random color
       function getRandomColor(alpha = 1) {
-        return `rgba(${Math.floor(Math.random() * 256)}, ${Math.floor(
-          Math.random() * 256
-        )}, ${Math.floor(Math.random() * 256)}, ${alpha})`;
+        // Generate brighter colors for dark backgrounds
+        const r = Math.floor(Math.random() * 156) + 100; // Range: 100 to 255
+        const g = Math.floor(Math.random() * 156) + 100; // Range: 100 to 255
+        const b = Math.floor(Math.random() * 156) + 100; // Range: 100 to 255
+
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
       }
 
       // Initialize Leaflet map
