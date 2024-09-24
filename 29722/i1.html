@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Enhanced Global Statistics Visualization</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.21.1/axios.min.js"></script>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+    />
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <style>
+      @keyframes moveBar {
+        0% {
+          transform: translateY(100vh);
+          opacity: 0.1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+        100% {
+          transform: translateY(-100vh);
+          opacity: 0.1;
+        }
+      }
+      .bar {
+        position: absolute;
+        background-color: rgba(
+          255,
+          255,
+          255,
+          0.1
+        ); /* Light white color with low opacity */
+        width: 2px; /* Width of each bar */
+        animation: moveBar linear infinite;
+        pointer-events: none;
+      }
+
+      @keyframes rotateGlobe {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      body {
+        color: #ffffff;
+        font-family: Arial, sans-serif;
+      }
+
+      .globe-icon {
+        animation: rotateGlobe 10s linear infinite;
+      }
+
+      .world-text-overlay {
+        background: none;
+        border: none;
+      }
+
+      .header-bg {
+        background: linear-gradient(135deg, #4caf50, #2196f3);
+        backdrop-filter: blur(2px);
+      }
+
+      .card {
+        background-color: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border-radius: 15px;
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        transition: all 0.3s ease;
+      }
+
+      .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.5);
+      }
+
+      select,
+      input[type="text"] {
+        background-color: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        color: #ffffff;
+        transition: all 0.3s ease;
+      }
+
+      select:focus,
+      input[type="text"]:focus {
+        border-color: #23d5ab;
+        box-shadow: 0 0 0 3px rgba(35, 213, 171, 0.2);
+      }
+
+      /* Custom scrollbar for select elements */
+      select::-webkit-scrollbar {
+        width: 10px;
+      }
+
+      select::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      select::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.3);
+        border-radius: 5px;
+      }
+
+      select::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.5);
+      }
+    </style>
+  </head>
+  <body
+    class="flex flex-col min-h-screen relative bg-gray-900 overflow-x-hidden"
+  >
+    <div class="lines absolute inset-0 pointer-events-none"></div>
+
+    <header class="header-bg text-white p-6 flex items-center justify-between">
+      <div class="flex items-center">
+        <svg
+          class="globe-icon w-10 h-10 mr-4"
+          viewBox="0 0 24 24"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+          <path
+            d="M2 12H22"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+          <path
+            d="M12 2C14.5013 4.73835 15.9228 8.29203 16 12C15.9228 15.708 14.5013 19.2616 12 22C9.49872 19.2616 8.07725 15.708 8 12C8.07725 8.29203 9.49872 4.73835 12 2Z"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+        <h1 class="text-3xl font-bold">
+          Enhanced Global Statistics Visualization
+        </h1>
+      </div>
+    </header>
+
+    <main class="flex-grow container mx-auto p-8">
+      <div
+        id="loader"
+        class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-75 z-50 hidden"
+      >
+        <div
+          class="animate-spin rounded-full h-32 w-32 border-b-2 border-white"
+        ></div>
+      </div>
+
+      <div class="mb-8">
+        <input
+          type="text"
+          id="countrySearch"
+          placeholder="Search for countries"
+          class="w-full p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-white"
+        />
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+        <div class="card p-6">
+          <h2 class="text-2xl font-semibold mb-4">Select Countries</h2>
+          <select
+            id="countrySelect"
+            multiple
+            class="w-full h-48 p-2 rounded-lg"
+          >
+            <!-- Countries will be populated here -->
+          </select>
+        </div>
+        <div class="card p-6">
+          <h2 class="text-2xl font-semibold mb-4">Select Metrics</h2>
+          <div id="metricCheckboxes" class="space-y-3">
+            <!-- Metric checkboxes will be populated here -->
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+        <div class="card p-6">
+          <h2 class="text-2xl font-semibold mb-4">Bar Chart</h2>
+          <canvas id="barChart"></canvas>
+        </div>
+        <div class="card p-6">
+          <h2 class="text-2xl font-semibold mb-4">Scatter Plot</h2>
+          <canvas id="scatterPlot"></canvas>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+        <div class="card p-6">
+          <h2 class="text-2xl font-semibold mb-4">Leaflet Map</h2>
+          <div id="leafletMap" style="height: 400px"></div>
+        </div>
+        <div class="card p-6">
+          <h2 class="text-2xl font-semibold mb-4">Country Details</h2>
+          <div id="countryDetails"></div>
+        </div>
+      </div>
+
+      <div class="card p-6 mb-8">
+        <h2 class="text-2xl font-semibold mb-4">Choropleth Map</h2>
+        <div class="mb-4">
+          <label for="choroplethFilter" class="mr-2 font-semibold"
+            >Filter by population:</label
+          >
+          <select
+            id="choroplethFilter"
+            class="p-2 rounded-lg bg-gray-800 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="all">All</option>
+            <option value="below2m">Below 2 million</option>
+            <option value="2mto10m">2 million - 10 million</option>
+            <option value="above10m">Above 10 million</option>
+          </select>
+        </div>
+        <canvas id="choroplethMap"></canvas>
+      </div>
+    </main>
+
+    <footer class="bg-black bg-opacity-50 text-white p-6 mt-8">
+      <p class="text-center">
+        &copy; 2024 Enhanced Global Statistics Visualization. All rights
+        reserved.
+      </p>
+    </footer>
+
+    <script>
+      // Create moving bars
+      const barsContainer = document.querySelector(".lines");
+
+      for (let i = 0; i < 30; i++) {
+        // Adjust number of bars here
+        const bar = document.createElement("div");
+        bar.classList.add("bar");
+        bar.style.height = `${Math.random() * 30 + 50}vh`; // Random bar height between 50vh and 80vh
+        bar.style.left = `${Math.random() * 100}%`; // Random horizontal position
+        bar.style.animationDuration = `${Math.random() * 15 + 5}s`; // Random duration between 5s and 20s
+        bar.style.animationDelay = `${Math.random() * 5}s`; // Random delay up to 5s
+        barsContainer.appendChild(bar);
+      }
+
+      // Global variables
+      let countries = [];
+      const metrics = ["population", "area", "populationDensity"];
+      let selectedCountries = [];
+      let selectedMetrics = [...metrics];
+      let map;
+      let markers = [];
+
+      // DOM elements
+      const loader = document.getElementById("loader");
+      const countrySearch = document.getElementById("countrySearch");
+      const countrySelect = document.getElementById("countrySelect");
+      const metricCheckboxes = document.getElementById("metricCheckboxes");
+      const choroplethFilter = document.getElementById("choroplethFilter");
+      const countryDetails = document.getElementById("countryDetails");
+
+      // Show loader
+      function showLoader() {
+        loader.classList.remove("hidden");
+      }
+
+      // Hide loader
+      function hideLoader() {
+        loader.classList.add("hidden");
+      }
+
+      // Fetch countries data
+      async function fetchCountries() {
+        showLoader();
+        try {
+          const response = await axios.get(
+            "https://restcountries.com/v3.1/all"
+          );
+          countries = response.data.map((country) => ({
+            name: country.name.common,
+            population: country.population,
+            area: country.area,
+            region: country.region,
+            languages: country.languages,
+            populationDensity: country.population / country.area,
+            latlng: country.latlng,
+            currencies: country.currencies,
+            capital: country.capital,
+            flags: country.flags,
+          }));
+          populateCountrySelect();
+          initLeafletMap();
+          updateSelectedCountries();
+          hideLoader();
+        } catch (error) {
+          console.error("Error fetching countries:", error);
+          hideLoader();
+        }
+      }
+
+      // Populate country select
+      function populateCountrySelect() {
+        countrySelect.innerHTML =
+          "<option value='all' selected>All Countries</option>";
+        countries.forEach((country) => {
+          const option = document.createElement("option");
+          option.value = country.name;
+          option.textContent = country.name;
+          countrySelect.appendChild(option);
+        });
+        updateSelectedCountries();
+      }
+
+      // Populate metric checkboxes
+      function populateMetricCheckboxes() {
+        metrics.forEach((metric) => {
+          const div = document.createElement("div");
+          div.innerHTML = `
+          <label class="flex items-center">
+            <input type="checkbox" value="${metric}" checked class="mr-2">
+            <span>${metric.charAt(0).toUpperCase() + metric.slice(1)}</span>
+          </label>
+        `;
+          metricCheckboxes.appendChild(div);
+        });
+      }
+
+      function updateSelectedCountries() {
+        selectedCountries = Array.from(countrySelect.selectedOptions).map(
+          (option) => option.value
+        );
+        if (
+          selectedCountries.length === 0 ||
+          selectedCountries.length === countries.length
+        ) {
+          selectedCountries = ["all"];
+        }
+        updateCharts();
+        updateLeafletMap();
+        updateCountryDetails();
+      }
+
+      // Update selected metrics
+      function updateSelectedMetrics() {
+        selectedMetrics = Array.from(
+          metricCheckboxes.querySelectorAll("input:checked")
+        ).map((input) => input.value);
+        updateCharts();
+      }
+
+      // Create bar chart
+      function createBarChart() {
+        const ctx = document.getElementById("barChart").getContext("2d");
+        return new Chart(ctx, {
+          type: "bar",
+          data: {
+            labels: [],
+            datasets: [],
+          },
+          options: {
+            responsive: true,
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: {
+                  color: "white",
+                },
+              },
+              x: {
+                ticks: {
+                  color: "white",
+                },
+              },
+            },
+            plugins: {
+              legend: {
+                labels: {
+                  color: "white",
+                },
+              },
+            },
+          },
+        });
+      }
+
+      // Create scatter plot
+      function createScatterPlot() {
+        const ctx = document.getElementById("scatterPlot").getContext("2d");
+        return new Chart(ctx, {
+          type: "scatter",
+          data: {
+            datasets: [],
+          },
+          options: {
+            responsive: true,
+            scales: {
+              x: {
+                type: "linear",
+                position: "bottom",
+                ticks: {
+                  color: "white",
+                },
+              },
+              y: {
+                beginAtZero: true,
+                ticks: {
+                  color: "white",
+                },
+              },
+            },
+            plugins: {
+              legend: {
+                labels: {
+                  color: "white",
+                },
+              },
+            },
+          },
+        });
+      }
+
+      // Create choropleth map (simplified version using Chart.js)
+      function createChoroplethMap() {
+        const ctx = document.getElementById("choroplethMap").getContext("2d");
+        return new Chart(ctx, {
+          type: "bar",
+          data: {
+            labels: [],
+            datasets: [],
+          },
+          options: {
+            responsive: true,
+            indexAxis: "y",
+            scales: {
+              x: {
+                beginAtZero: true,
+                ticks: {
+                  color: "white",
+                },
+              },
+              y: {
+                ticks: {
+                  color: "white",
+                },
+              },
+            },
+            plugins: {
+              legend: {
+                labels: {
+                  color: "white",
+                },
+              },
+            },
+          },
+        });
+      }
+
+      // Update charts
+      function updateCharts() {
+        updateBarChart();
+        updateScatterPlot();
+        updateChoroplethMap();
+      }
+
+      // Update bar chart
+      function updateBarChart() {
+        const data = {
+          labels:
+            selectedCountries[0] === "all"
+              ? countries.map((c) => c.name)
+              : selectedCountries,
+          datasets: selectedMetrics.map((metric) => ({
+            label: metric,
+            data:
+              selectedCountries[0] === "all"
+                ? countries.map((c) => c[metric])
+                : selectedCountries.map((country) => {
+                    const countryData = countries.find(
+                      (c) => c.name === country
+                    );
+                    return countryData ? countryData[metric] : 0;
+                  }),
+            backgroundColor: getRandomColor(0.6),
+            borderColor: getRandomColor(1),
+            borderWidth: 1,
+          })),
+        };
+        barChart.data = data;
+        barChart.update();
+      }
+
+      // Update scatter plot
+      function updateScatterPlot() {
+        if (selectedMetrics.length >= 2) {
+          const datasets =
+            selectedCountries[0] === "all"
+              ? selectedMetrics.slice(1).map((metric, index) => ({
+                  label: `${selectedMetrics[0]} vs ${metric}`,
+                  data: countries.map((country) => ({
+                    x: country[selectedMetrics[0]],
+                    y: country[metric],
+                  })),
+                  backgroundColor: getRandomColor(0.6),
+                  borderColor: getRandomColor(1),
+                  borderWidth: 1,
+                }))
+              : [
+                  {
+                    label: `${selectedMetrics[0]} vs ${selectedMetrics[1]}`,
+                    data: selectedCountries.map((country) => {
+                      const countryData = countries.find(
+                        (c) => c.name === country
+                      );
+                      return {
+                        x: countryData ? countryData[selectedMetrics[0]] : 0,
+                        y: countryData ? countryData[selectedMetrics[1]] : 0,
+                      };
+                    }),
+                    backgroundColor: getRandomColor(0.6),
+                    borderColor: getRandomColor(1),
+                    borderWidth: 1,
+                  },
+                ];
+
+          scatterPlot.data = { datasets };
+          scatterPlot.options.scales.x.title = {
+            display: true,
+            text: selectedMetrics[0],
+            color: "white",
+          };
+          scatterPlot.options.scales.y.title = {
+            display: true,
+            text:
+              selectedCountries[0] === "all"
+                ? "Multiple Metrics"
+                : selectedMetrics[1],
+            color: "white",
+          };
+          scatterPlot.update();
+        }
+      }
+
+      // Update choropleth map
+      function updateChoroplethMap() {
+        if (selectedMetrics.length > 0) {
+          const filteredCountries = filterCountriesByPopulation(countries);
+          const data = {
+            labels: filteredCountries.map((country) => country.name),
+            datasets: [
+              {
+                label: selectedMetrics[0],
+                data: filteredCountries.map(
+                  (country) => country[selectedMetrics[0]]
+                ),
+                backgroundColor: getRandomColor(0.6),
+                borderColor: getRandomColor(1),
+                borderWidth: 1,
+              },
+            ],
+          };
+          choroplethMap.data = data;
+          choroplethMap.update();
+        }
+      }
+
+      // Filter countries by population
+      function filterCountriesByPopulation(countries) {
+        const filter = choroplethFilter.value;
+        switch (filter) {
+          case "below2m":
+            return countries.filter((country) => country.population < 2000000);
+          case "2mto10m":
+            return countries.filter(
+              (country) =>
+                country.population >= 2000000 && country.population <= 10000000
+            );
+          case "above10m":
+            return countries.filter((country) => country.population > 10000000);
+          default:
+            return countries;
+        }
+      }
+
+      // Get random color
+      function getRandomColor(alpha = 1) {
+        return `rgba(${Math.floor(Math.random() * 256)}, ${Math.floor(
+          Math.random() * 256
+        )}, ${Math.floor(Math.random() * 256)}, ${alpha})`;
+      }
+
+      // Initialize Leaflet map
+      function initLeafletMap() {
+        if (!map) {
+          map = L.map("leafletMap").setView([0, 0], 2);
+          L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            attribution:
+              '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+          }).addTo(map);
+        }
+      }
+
+      // Update Leaflet map
+      function updateLeafletMap() {
+        if (!map) return;
+
+        // Clear existing markers
+        markers.forEach((marker) => map.removeLayer(marker));
+        markers = [];
+
+        if (selectedCountries[0] === "all") {
+          // Add a text overlay for "World" when all countries are selected
+          const worldTextOverlay = L.divIcon({
+            className: "world-text-overlay",
+            html: '<div style="font-size: 24px; font-weight: bold; color: #3b82f6;">World</div>',
+          });
+          const worldMarker = L.marker([0, 0], {
+            icon: worldTextOverlay,
+          }).addTo(map);
+          markers.push(worldMarker);
+          map.setView([0, 0], 2);
+        } else {
+          // Add markers for selected countries
+          selectedCountries.forEach((countryName) => {
+            const country = countries.find((c) => c.name === countryName);
+            if (country && country.latlng) {
+              const marker = L.marker(country.latlng).addTo(map);
+              marker.bindPopup(
+                `<b>${
+                  country.name
+                }</b><br>Population: ${country.population.toLocaleString()}`
+              );
+              markers.push(marker);
+            }
+          });
+
+          // Fit map bounds to show all markers
+          if (markers.length > 0) {
+            const group = new L.featureGroup(markers);
+            map.fitBounds(group.getBounds());
+          }
+        }
+      }
+
+      // Update country details
+      function updateCountryDetails() {
+        if (selectedCountries[0] === "all") {
+          const totalPopulation = countries.reduce(
+            (sum, country) => sum + country.population,
+            0
+          );
+          countryDetails.innerHTML = `
+            <div class="bg-white bg-opacity-10 p-6 rounded-lg shadow-lg max-w-3xl mx-auto">
+                <h3 class="text-2xl font-bold text-white mb-4">All Countries</h3>
+                <p class="text-lg text-white"><span class="font-semibold">Total Population:</span> ${totalPopulation.toLocaleString()}</p>
+            </div>
+        `;
+        } else {
+          countryDetails.innerHTML = selectedCountries
+            .map((countryName) => {
+              const country = countries.find((c) => c.name === countryName);
+              if (!country) return "";
+
+              const formatNumber = (num) => num.toLocaleString();
+              const formatList = (list) =>
+                list ? Object.values(list).join(", ") : "N/A";
+              const formatCurrencies = (currencies) =>
+                currencies
+                  ? Object.values(currencies)
+                      .map((c) => `${c.name} (${c.symbol})`)
+                      .join(", ")
+                  : "N/A";
+
+              return `
+                    <div class="bg-white bg-opacity-10 p-6 rounded-lg shadow-lg mb-6 max-w-3xl mx-auto">
+                        <div class="flex items-center mb-4">
+                            <img src="${country.flags.png}" alt="${
+                country.name
+              } flag" class="w-16 h-auto mr-4 rounded shadow-lg">
+                            <h3 class="text-2xl font-bold text-white">${
+                              country.name
+                            }</h3>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <p class="text-white"><span class="font-semibold">Population:</span> ${formatNumber(
+                                  country.population
+                                )}</p>
+                                <p class="text-white"><span class="font-semibold">Area:</span> ${formatNumber(
+                                  country.area
+                                )} km²</p>
+                                <p class="text-white"><span class="font-semibold">Population Density:</span> ${formatNumber(
+                                  country.populationDensity.toFixed(2)
+                                )} people/km²</p>
+                                <p class="text-white"><span class="font-semibold">Region:</span> ${
+                                  country.region
+                                }</p>
+                            </div>
+                            <div>
+                                <p class="text-white"><span class="font-semibold">Capital:</span> ${
+                                  country.capital
+                                    ? country.capital.join(", ")
+                                    : "N/A"
+                                }</p>
+                                <p class="text-white"><span class="font-semibold">Languages:</span> ${formatList(
+                                  country.languages
+                                )}</p>
+                                <p class="text-white"><span class="font-semibold">Currencies:</span> ${formatCurrencies(
+                                  country.currencies
+                                )}</p>
+                                <p class="text-white"><span class="font-semibold">Coordinates:</span> ${
+                                  country.latlng
+                                    ? country.latlng.join(", ")
+                                    : "N/A"
+                                }</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            })
+            .join("");
+        }
+      }
+
+      // Initialize charts
+      const barChart = createBarChart();
+      const scatterPlot = createScatterPlot();
+      const choroplethMap = createChoroplethMap();
+
+      // Event listeners
+      countrySelect.addEventListener("change", updateSelectedCountries);
+      metricCheckboxes.addEventListener("change", updateSelectedMetrics);
+      choroplethFilter.addEventListener("change", updateChoroplethMap);
+      countrySearch.addEventListener("input", (e) => {
+        const searchTerm = e.target.value.toLowerCase();
+        Array.from(countrySelect.options).forEach((option) => {
+          option.style.display = option.text.toLowerCase().includes(searchTerm)
+            ? ""
+            : "none";
+        });
+      });
+
+      // Initialize app
+      fetchCountries();
+      populateMetricCheckboxes();
+    </script>
+  </body>
+</html>

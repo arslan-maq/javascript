@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Global Country Statistics</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/leaflet.css"
+    />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+      }
+      #app {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+      }
+      #controls {
+        padding: 10px;
+        background: #f0f0f0;
+      }
+      #visualization {
+        flex-grow: 1;
+        display: flex;
+      }
+      #map {
+        width: 100%;
+        height: 400px;
+      }
+      .chart-container {
+        width: 100%;
+        height: 300px;
+      }
+      @media (max-width: 768px) {
+        #visualization {
+          flex-direction: column;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div id="controls">
+        <input
+          type="search"
+          id="countrySearch"
+          placeholder="Search for countries..."
+        />
+        <select id="metricSelect"></select>
+        <button onclick="updateVisualizations()">Update</button>
+      </div>
+      <div id="visualization">
+        <div id="map"></div>
+        <div id="charts">
+          <canvas id="barChart"></canvas>
+          <canvas id="scatterPlot"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios@0.21.1/dist/axios.min.js"></script>
+    <script>
+      let countriesData,
+        selectedCountries = [],
+        currentMetric = "population";
+
+      document.addEventListener("DOMContentLoaded", async () => {
+        try {
+          const response = await axios.get(
+            "https://restcountries.com/v3.1/all"
+          );
+          countriesData = response.data;
+          setupCountrySearch();
+          setupMetricSelect();
+          initMap();
+          createBarChart();
+          createScatterPlot();
+        } catch (error) {
+          console.error("Failed to fetch country data:", error);
+          alert("Failed to load data. Please try again later.");
+        }
+      });
+
+      function setupCountrySearch() {
+        const search = document.getElementById("countrySearch");
+        search.addEventListener(
+          "input",
+          debounce(function (e) {
+            const term = e.target.value.toLowerCase();
+            const filteredCountries = countriesData.filter((country) =>
+              country.name.common.toLowerCase().includes(term)
+            );
+            // Here you would update your UI with filtered countries
+          }, 300)
+        );
+      }
+
+      function setupMetricSelect() {
+        const metrics = ["population", "area", "density", "gini"];
+        const select = document.getElementById("metricSelect");
+        metrics.forEach((metric) => {
+          const option = document.createElement("option");
+          option.value = metric;
+          option.textContent = metric.charAt(0).toUpperCase() + metric.slice(1);
+          select.appendChild(option);
+        });
+        select.addEventListener(
+          "change",
+          (e) => (currentMetric = e.target.value)
+        );
+      }
+
+      function initMap() {
+        const map = L.map("map").setView([0, 0], 2);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution: "&copy; OpenStreetMap contributors",
+        }).addTo(map);
+
+        countriesData.forEach((country) => {
+          if (country.latlng) {
+            L.marker(country.latlng)
+              .addTo(map)
+              .bindPopup(country.name.common)
+              .on("click", () => selectCountry(country));
+          }
+        });
+      }
+
+      function createBarChart() {
+        const ctx = document.getElementById("barChart").getContext("2d");
+        new Chart(ctx, {
+          type: "bar",
+          options: {
+            plugins: {
+              tooltip: {
+                callbacks: {
+                  label: function (context) {
+                    return `${context.dataset.label}: ${context.parsed.y}`;
+                  },
+                },
+              },
+            },
+            scales: {
+              y: { beginAtZero: true },
+            },
+          },
+        });
+      }
+
+      function createScatterPlot() {
+        const ctx = document.getElementById("scatterPlot").getContext("2d");
+        new Chart(ctx, {
+          type: "scatter",
+          options: {
+            scales: {
+              x: { type: "linear", position: "bottom" },
+              y: { beginAtZero: true },
+            },
+            plugins: {
+              tooltip: {
+                callbacks: {
+                  label: function (context) {
+                    return `${context.dataset.label}: (${context.parsed.x}, ${context.parsed.y})`;
+                  },
+                },
+              },
+            },
+          },
+        });
+      }
+
+      function updateVisualizations() {
+        updateBarChart();
+        updateScatterPlot();
+        updateChoropleth();
+      }
+
+      function updateBarChart() {
+        const chart = Chart.getChart("barChart");
+        chart.data = {
+          labels: selectedCountries.map((c) => c.name.common),
+          datasets: [
+            {
+              label: currentMetric,
+              data: selectedCountries.map((c) => c[currentMetric]),
+              backgroundColor: "rgba(75, 192, 192, 0.2)",
+              borderColor: "rgba(75, 192, 192, 1)",
+              borderWidth: 1,
+            },
+          ],
+        };
+        chart.update();
+      }
+
+      function updateScatterPlot() {
+        const chart = Chart.getChart("scatterPlot");
+        chart.data = {
+          datasets: [
+            {
+              label: "Population vs Area",
+              data: countriesData.map((c) => ({ x: c.area, y: c.population })),
+              backgroundColor: "rgba(255, 99, 132, 0.2)",
+              borderColor: "rgba(255, 99, 132, 1)",
+              pointRadius: 5,
+            },
+          ],
+        };
+        chart.update();
+      }
+
+      function updateChoropleth() {
+        // This would involve coloring countries on the map based on the current metric
+        // Implementation depends on Leaflet plugins or custom solutions for choropleth
+      }
+
+      function selectCountry(country) {
+        if (!selectedCountries.includes(country)) {
+          selectedCountries.push(country);
+        } else {
+          selectedCountries = selectedCountries.filter((c) => c !== country);
+        }
+        updateVisualizations();
+      }
+
+      function debounce(func, wait) {
+        let timeout;
+        return function (...args) {
+          const context = this;
+          clearTimeout(timeout);
+          timeout = setTimeout(() => func.apply(context, args), wait);
+        };
+      }
+    </script>
+  </body>
+</html>
