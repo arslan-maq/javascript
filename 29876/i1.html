@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CME Explorer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+      @keyframes gradientBG {
+        0% {
+          background-position: 0% 50%;
+        }
+        50% {
+          background-position: 100% 50%;
+        }
+        100% {
+          background-position: 0% 50%;
+        }
+      }
+
+      body {
+        background: linear-gradient(-45deg, #000000, #0a0a1a, #1a1a2e, #0a0a1a);
+        background-size: 400% 400%;
+        animation: gradientBG 15s ease infinite;
+        color: #e2e8f0;
+      }
+
+      .header-gradient {
+        background: linear-gradient(90deg, #312e81, #1e3a8a);
+      }
+
+      @keyframes rotateLogo {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      .logo {
+        animation: rotateLogo 10s linear infinite;
+      }
+
+      .chart-container {
+        background-color: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(10px);
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+
+      @keyframes twinkle {
+        0% {
+          opacity: 0.3;
+        }
+        50% {
+          opacity: 1;
+        }
+        100% {
+          opacity: 0.3;
+        }
+      }
+
+      .star {
+        position: absolute;
+        background-color: #ffffff;
+        border-radius: 50%;
+        animation: twinkle 3s infinite;
+      }
+
+      .gradient-button {
+        background: linear-gradient(45deg, #3730a3, #1e40af);
+        transition: all 0.3s ease;
+      }
+
+      .gradient-button:hover {
+        background: linear-gradient(45deg, #1e40af, #3730a3);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+    </style>
+  </head>
+  <body class="flex flex-col min-h-screen">
+    <div id="starfield"></div>
+
+    <header
+      class="header-gradient text-white p-6 flex items-center justify-between"
+    >
+      <div class="flex items-center">
+        <svg
+          class="logo w-12 h-12 mr-4"
+          viewBox="0 0 24 24"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <circle
+            cx="12"
+            cy="12"
+            r="10"
+            stroke="currentColor"
+            stroke-width="2"
+          />
+          <path
+            d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-5-9h10v2H7v-2z"
+            fill="currentColor"
+          />
+        </svg>
+        <h1 class="text-3xl font-bold">CME Explorer</h1>
+      </div>
+    </header>
+
+    <main class="flex-grow container mx-auto p-8">
+      <div
+        id="loader"
+        class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-75 z-50 hidden"
+      >
+        <div
+          class="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-blue-500"
+        ></div>
+      </div>
+
+      <div class="mb-8">
+        <h2 class="text-2xl font-semibold mb-4">Filters</h2>
+        <div class="flex flex-wrap gap-4">
+          <input
+            type="date"
+            id="startDate"
+            class="bg-white bg-opacity-20 border border-blue-300 p-2 rounded text-white placeholder-blue-200"
+          />
+          <input
+            type="date"
+            id="endDate"
+            class="bg-white bg-opacity-20 border border-blue-300 p-2 rounded text-white placeholder-blue-200"
+          />
+          <input
+            type="number"
+            id="minSpeed"
+            placeholder="Min Speed"
+            class="bg-white bg-opacity-20 border border-blue-300 p-2 rounded text-white placeholder-blue-200"
+          />
+          <input
+            type="number"
+            id="maxSpeed"
+            placeholder="Max Speed"
+            class="bg-white bg-opacity-20 border border-blue-300 p-2 rounded text-white placeholder-blue-200"
+          />
+          <input
+            type="text"
+            id="sourceLocation"
+            placeholder="Source Location"
+            class="bg-white bg-opacity-20 border border-blue-300 p-2 rounded text-white placeholder-blue-200"
+          />
+          <button
+            id="applyFilters"
+            class="gradient-button text-white px-6 py-2 rounded"
+          >
+            Apply Filters
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+        <div class="chart-container p-6">
+          <h3 class="text-xl font-semibold mb-4">
+            CME Speed & Half-Angle Chart
+          </h3>
+          <canvas id="speedHalfAngleChart"></canvas>
+        </div>
+        <div class="chart-container p-6">
+          <h3 class="text-xl font-semibold mb-4">
+            Latitude & Longitude Heatmap
+          </h3>
+          <div id="latLongHeatmap"></div>
+        </div>
+        <div class="chart-container p-6">
+          <h3 class="text-xl font-semibold mb-4">CME Frequency Over Time</h3>
+          <canvas id="timeFrequencyChart"></canvas>
+        </div>
+        <div class="chart-container p-6">
+          <h3 class="text-xl font-semibold mb-4">Instrument Utilization</h3>
+          <canvas id="instrumentPieChart"></canvas>
+        </div>
+      </div>
+
+      <div class="chart-container p-6 mb-8">
+        <h3 class="text-xl font-semibold mb-4">Earth Impact Timeline</h3>
+        <div id="earthImpactTimeline"></div>
+      </div>
+
+      <div class="chart-container p-6 mb-8">
+        <h3 class="text-xl font-semibold mb-4">3D CME Propagation</h3>
+        <div id="cmePropagation3D"></div>
+      </div>
+
+      <div class="chart-container p-6">
+        <h3 class="text-xl font-semibold mb-4">CME Events List</h3>
+        <div id="cmeEventsList" class="overflow-x-auto">
+          <table class="min-w-full">
+            <thead>
+              <tr class="bg-blue-900 bg-opacity-50">
+                <th class="px-4 py-2 text-left">Activity ID</th>
+                <th class="px-4 py-2 text-left">Start Time</th>
+                <th class="px-4 py-2 text-left">Source Location</th>
+                <th class="px-4 py-2 text-left">Instruments</th>
+                <th class="px-4 py-2 text-left">Catalog</th>
+                <th class="px-4 py-2 text-left">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="cmeEventsTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+
+    <!-- Add modal for CME details -->
+    <div
+      id="cmeDetailsModal"
+      class="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm overflow-y-auto h-full w-full hidden"
+    >
+      <div
+        class="relative top-20 mx-auto p-8 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-gradient-to-br from-gray-900 to-blue-900 text-blue-100"
+      >
+        <div class="mt-3">
+          <h3
+            class="text-2xl leading-6 font-medium mb-4 text-blue-200"
+            id="modalTitle"
+          ></h3>
+          <div class="mt-2 px-7 py-3" id="modalContent"></div>
+          <div class="items-center px-4 py-3 mt-4">
+            <button
+              id="closeModal"
+              class="gradient-button text-white px-6 py-2 rounded-md w-full"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="bg-gray-900 text-white p-6 mt-12">
+      <p class="text-center">
+        &copy; 2024 CME Explorer. Data provided by NASA's DONKI API.
+      </p>
+    </footer>
+
+    <script>
+      // Create starfield
+      function createStarfield() {
+        const starfield = document.getElementById("starfield");
+        const numStars = 100;
+
+        for (let i = 0; i < numStars; i++) {
+          const star = document.createElement("div");
+          star.className = "star";
+          star.style.width = `${Math.random() * 3}px`;
+          star.style.height = star.style.width;
+          star.style.left = `${Math.random() * 100}%`;
+          star.style.top = `${Math.random() * 100}%`;
+          star.style.animationDelay = `${Math.random() * 3}s`;
+          starfield.appendChild(star);
+        }
+      }
+
+      createStarfield();
+
+      // Constants
+      const API_KEY = "DEMO_KEY";
+      const API_URL = "https://api.nasa.gov/DONKI/CME";
+
+      // Global variables
+      let cmeData = [];
+
+      // DOM Elements
+      const loader = document.getElementById("loader");
+      const applyFiltersBtn = document.getElementById("applyFilters");
+      const cmeEventsTableBody = document.getElementById("cmeEventsTableBody");
+
+      // Event Listeners
+      document.addEventListener("DOMContentLoaded", initializeApp);
+      applyFiltersBtn.addEventListener("click", applyFilters);
+
+      async function initializeApp() {
+        showLoader();
+        try {
+          await fetchCMEData();
+          renderCMEEventsList();
+          initializeCharts();
+        } catch (error) {
+          console.error("Error initializing app:", error);
+          alert(
+            "An error occurred while initializing the app. Please try again later."
+          );
+        } finally {
+          hideLoader();
+        }
+      }
+
+      async function fetchCMEData() {
+        const response = await fetch(`${API_URL}?api_key=${API_KEY}`);
+        if (!response.ok) {
+          throw new Error("Failed to fetch CME data");
+        }
+        cmeData = await response.json();
+      }
+
+      function renderCMEEventsList() {
+        cmeEventsTableBody.innerHTML = "";
+        cmeData.forEach((cme) => {
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td class="px-4 py-2">${cme.activityID}</td>
+            <td class="px-4 py-2">${new Date(
+              cme.startTime
+            ).toLocaleString()}</td>
+            <td class="px-4 py-2">${cme.sourceLocation || "N/A"}</td>
+            <td class="px-4 py-2">${cme.instruments
+              .map((i) => i.displayName)
+              .join(", ")}</td>
+            <td class="px-4 py-2">${cme.catalog}</td>
+            <td class="px-4 py-2">
+              <button class="gradient-button text-white px-2 py-1 rounded" onclick="showCMEDetails('${
+                cme.activityID
+              }')">
+                Details
+              </button>
+            </td>
+          `;
+          cmeEventsTableBody.appendChild(row);
+        });
+      }
+
+      function showCMEDetails(activityID) {
+        const cme = cmeData.find((cme) => cme.activityID === activityID);
+        if (cme) {
+          const modal = document.getElementById("cmeDetailsModal");
+          const modalTitle = document.getElementById("modalTitle");
+          const modalContent = document.getElementById("modalContent");
+
+          modalTitle.textContent = `CME Details: ${cme.activityID}`;
+          modalContent.innerHTML = `
+            <div class="text-left">
+              <p class="mb-2"><strong class="text-blue-300">Start Time:</strong> ${new Date(
+                cme.startTime
+              ).toLocaleString()}</p>
+              <p class="mb-2"><strong class="text-blue-300">Source Location:</strong> ${
+                cme.sourceLocation || "N/A"
+              }</p>
+              <p class="mb-2"><strong class="text-blue-300">Note:</strong> ${
+                cme.note || "N/A"
+              }</p>
+              <h4 class="font-bold mt-4 mb-2 text-blue-200">Instruments:</h4>
+              <ul class="list-disc list-inside mb-4">
+                ${cme.instruments
+                  .map((i) => `<li>${i.displayName}</li>`)
+                  .join("")}
+              </ul>
+              <h4 class="font-bold mt-4 mb-2 text-blue-200">CME Analysis:</h4>
+              ${cme.cmeAnalyses
+                .map(
+                  (analysis) => `
+                <div class="bg-blue-900 bg-opacity-50 p-4 rounded mt-2">
+                  <p class="mb-1"><strong class="text-blue-300">Speed:</strong> ${
+                    analysis.speed || "N/A"
+                  } km/s</p>
+                  <p class="mb-1"><strong class="text-blue-300">Type:</strong> ${
+                    analysis.type || "N/A"
+                  }</p>
+                  <p class="mb-1"><strong class="text-blue-300">Direction:</strong> ${
+                    analysis.latitude || "N/A"
+                  }° latitude, ${analysis.longitude || "N/A"}° longitude</p>
+                </div>
+              `
+                )
+                .join("")}
+            </div>
+          `;
+
+          modal.classList.remove("hidden");
+        }
+      }
+
+      function initializeCharts() {
+        createSpeedHalfAngleChart();
+        createLatLongHeatmap();
+        createTimeFrequencyChart();
+        createInstrumentPieChart();
+        createEarthImpactTimeline();
+        create3DPropagation();
+      }
+
+      function createSpeedHalfAngleChart() {
+        const ctx = document
+          .getElementById("speedHalfAngleChart")
+          .getContext("2d");
+        new Chart(ctx, {
+          type: "scatter",
+          data: {
+            datasets: [
+              {
+                label: "CME Speed vs Half-Angle",
+                data: cmeData.map((cme) => ({
+                  x: cme.cmeAnalyses[0]?.speed || 0,
+                  y: cme.cmeAnalyses[0]?.halfAngle || 0,
+                })),
+                backgroundColor: "rgba(75, 192, 192, 1)",
+              },
+            ],
+          },
+          options: {
+            scales: {
+              x: {
+                title: {
+                  display: true,
+                  text: "Speed (km/s)",
+                  color: "white",
+                },
+                ticks: { color: "white" },
+                grid: { color: "rgba(255, 255, 255, 0.1)" },
+              },
+              y: {
+                title: {
+                  display: true,
+                  text: "Half-Angle (degrees)",
+                  color: "white",
+                },
+                ticks: { color: "white" },
+                grid: { color: "rgba(255, 255, 255, 0.1)" },
+              },
+            },
+            plugins: {
+              legend: {
+                labels: { color: "white" },
+              },
+            },
+          },
+        });
+      }
+
+      function createLatLongHeatmap() {
+        const margin = { top: 20, right: 20, bottom: 30, left: 40 };
+        const width = 460 - margin.left - margin.right;
+        const height = 400 - margin.top - margin.bottom;
+
+        const svg = d3
+          .select("#latLongHeatmap")
+          .append("svg")
+          .attr("width", width + margin.left + margin.right)
+          .attr("height", height + margin.top + margin.bottom)
+          .append("g")
+          .attr("transform", `translate(${margin.left},${margin.top})`);
+
+        const x = d3.scaleLinear().domain([-180, 180]).range([0, width]);
+        const y = d3.scaleLinear().domain([-90, 90]).range([height, 0]);
+
+        svg
+          .append("g")
+          .attr("transform", `translate(0,${height})`)
+          .call(d3.axisBottom(x).ticks(5));
+
+        svg.append("g").call(d3.axisLeft(y).ticks(5));
+
+        const heatmapData = cmeData
+          .filter((cme) => cme.cmeAnalyses && cme.cmeAnalyses[0])
+          .map((cme) => ({
+            longitude: cme.cmeAnalyses[0].longitude || 0,
+            latitude: cme.cmeAnalyses[0].latitude || 0,
+            activityID: cme.activityID,
+            startTime: cme.startTime,
+          }));
+
+        // Remove the dynamic color scaling
+        const color = "#FF6384"; // Fixed color for circles
+
+        // Create a tooltip
+        const tooltip = d3
+          .select("body")
+          .append("div")
+          .style("opacity", 0)
+          .attr("class", "tooltip")
+          .style("background-color", "#f0f0f0") // Light background color
+          .style("color", "#000000") // Black text color
+          .style("border", "solid")
+          .style("border-width", "2px")
+          .style("border-radius", "5px")
+          .style("padding", "5px")
+          .style("position", "absolute");
+
+        svg
+          .selectAll("circle")
+          .data(heatmapData)
+          .enter()
+          .append("circle")
+          .attr("cx", (d) => x(d.longitude))
+          .attr("cy", (d) => y(d.latitude))
+          .attr("r", 5)
+          .style("fill", color) // Use the fixed color here
+          .style("opacity", 0.5)
+          .on("mouseover", function (event, d) {
+            tooltip.transition().duration(200).style("opacity", 0.9);
+            tooltip
+              .html(
+                `Activity ID: ${d.activityID}<br/>Start Time: ${d.startTime}<br/>Longitude: ${d.longitude}<br/>Latitude: ${d.latitude}`
+              )
+              .style("left", event.pageX + 10 + "px")
+              .style("top", event.pageY - 28 + "px");
+          })
+          .on("mouseout", function () {
+            tooltip.transition().duration(500).style("opacity", 0);
+          });
+
+        // svg
+        //   .append("text")
+        //   .attr("x", width / 2)
+        //   .attr("y", 0 - margin.top / 2)
+        //   .attr("text-anchor", "middle")
+        //   .style("font-size", "16px")
+        //   .text("CME Source Locations");
+      }
+
+      function createTimeFrequencyChart() {
+        const ctx = document
+          .getElementById("timeFrequencyChart")
+          .getContext("2d");
+        const dateCounter = cmeData.reduce((acc, cme) => {
+          const date = cme.startTime.split("T")[0];
+          acc[date] = (acc[date] || 0) + 1;
+          return acc;
+        }, {});
+
+        new Chart(ctx, {
+          type: "line",
+          data: {
+            labels: Object.keys(dateCounter),
+            datasets: [
+              {
+                label: "CME Frequency",
+                data: Object.values(dateCounter),
+                borderColor: "rgb(255,187,0)",
+                backgroundColor: "rgba(255,187,0, 0.3)",
+                tension: 0.1,
+              },
+            ],
+          },
+          options: {
+            scales: {
+              x: {
+                title: {
+                  display: true,
+                  text: "Date",
+                  color: "white",
+                },
+                ticks: { color: "white" },
+                grid: {
+                  color: "rgba(255, 255, 255, 0.1)",
+                },
+              },
+              y: {
+                title: {
+                  display: true,
+                  text: "Number of CMEs",
+                  color: "white",
+                },
+                ticks: { color: "white" },
+                grid: { color: "rgba(255, 255, 255, 0.1)" },
+                beginAtZero: true,
+              },
+            },
+            plugins: {
+              legend: {
+                labels: { color: "white" },
+              },
+            },
+          },
+        });
+      }
+
+      function createInstrumentPieChart() {
+        const ctx = document
+          .getElementById("instrumentPieChart")
+          .getContext("2d");
+        const instrumentCounter = cmeData.reduce((acc, cme) => {
+          cme.instruments.forEach((instrument) => {
+            const instrumentName = instrument.displayName || "Unknown";
+            acc[instrumentName] = (acc[instrumentName] || 0) + 1;
+          });
+          return acc;
+        }, {});
+
+        new Chart(ctx, {
+          type: "pie",
+          data: {
+            labels: Object.keys(instrumentCounter),
+            datasets: [
+              {
+                data: Object.values(instrumentCounter),
+                backgroundColor: [
+                  "rgba(255, 99, 132, 0.8)",
+                  "rgba(54, 162, 235, 0.8)",
+                  "rgba(255, 206, 86, 0.8)",
+                  "rgba(75, 192, 192, 0.8)",
+                  "rgba(153, 102, 255, 0.8)",
+                ],
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: {
+                position: "top",
+                labels: { color: "white" },
+              },
+              title: {
+                display: true,
+                text: "Instrument Utilization",
+                color: "white",
+              },
+            },
+          },
+        });
+      }
+
+      function createEarthImpactTimeline() {
+        const margin = { top: 20, right: 20, bottom: 30, left: 50 };
+        const width = 600 - margin.left - margin.right;
+        const height = 300 - margin.top - margin.bottom;
+
+        const svg = d3
+          .select("#earthImpactTimeline")
+          .append("svg")
+          .attr("width", width + margin.left + margin.right)
+          .attr("height", height + margin.top + margin.bottom)
+          .append("g")
+          .attr("transform", `translate(${margin.left},${margin.top})`);
+
+        const x = d3.scaleTime().range([0, width]);
+        const y = d3.scaleLinear().range([height, 0]);
+
+        const line = d3
+          .line()
+          .x((d) => x(d.date))
+          .y((d) => y(d.impact));
+
+        const impactData = cmeData
+          .filter(
+            (cme) =>
+              cme.cmeAnalyses &&
+              cme.cmeAnalyses[0] &&
+              cme.cmeAnalyses[0].enlilList
+          )
+          .flatMap((cme) =>
+            cme.cmeAnalyses[0].enlilList
+              .filter((enlil) => enlil.impactList)
+              .flatMap((enlil) =>
+                enlil.impactList.map((impact) => ({
+                  date: new Date(impact.arrivalTime),
+                  impact: impact.isGlancingBlow ? 0.5 : 1,
+                }))
+              )
+          );
+
+        x.domain(d3.extent(impactData, (d) => d.date));
+        y.domain([0, 1]);
+
+        svg
+          .append("path")
+          .datum(impactData)
+          .attr("fill", "none")
+          .attr("stroke", "rgb(253, 224, 71)") // Yellow color
+          .attr("stroke-width", 2)
+          .attr("d", line);
+
+        svg
+          .append("g")
+          .attr("transform", `translate(0,${height})`)
+          .call(d3.axisBottom(x))
+          .attr("color", "white");
+
+        svg.append("g").call(d3.axisLeft(y)).attr("color", "white");
+
+        // svg
+        //   .append("text")
+        //   .attr("x", width / 2)
+        //   .attr("y", 0 - margin.top / 2)
+        //   .attr("text-anchor", "middle")
+        //   .style("font-size", "16px")
+        //   .style("fill", "white")
+        //   .text("Earth Impact Timeline");
+      }
+
+      function create3DPropagation() {
+        const container = document.getElementById("cmePropagation3D");
+        const width = container.clientWidth;
+        const height = 400;
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(
+          75,
+          width / height,
+          0.1,
+          1000
+        );
+        const renderer = new THREE.WebGLRenderer({ alpha: true });
+
+        renderer.setSize(width, height);
+        container.appendChild(renderer.domElement);
+
+        // Create a sun
+        const sunGeometry = new THREE.SphereGeometry(5, 32, 32);
+        const sunMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+        const sun = new THREE.Mesh(sunGeometry, sunMaterial);
+        scene.add(sun);
+
+        // Create CME particles
+        const particlesGeometry = new THREE.BufferGeometry();
+        const particlesCnt = 5000;
+        const posArray = new Float32Array(particlesCnt * 3);
+
+        for (let i = 0; i < particlesCnt * 3; i++) {
+          posArray[i] = (Math.random() - 0.5) * 100;
+        }
+
+        particlesGeometry.setAttribute(
+          "position",
+          new THREE.BufferAttribute(posArray, 3)
+        );
+        const particlesMaterial = new THREE.PointsMaterial({
+          size: 0.005,
+          color: 0x93c5fd,
+        });
+
+        const particlesMesh = new THREE.Points(
+          particlesGeometry,
+          particlesMaterial
+        );
+        scene.add(particlesMesh);
+
+        camera.position.z = 50;
+
+        function animate() {
+          requestAnimationFrame(animate);
+          particlesMesh.rotation.x += 0.001;
+          particlesMesh.rotation.y += 0.001;
+          renderer.render(scene, camera);
+        }
+
+        animate();
+      }
+
+      function applyFilters() {
+        const startDate = document.getElementById("startDate").value;
+        const endDate = document.getElementById("endDate").value;
+        const minSpeed = document.getElementById("minSpeed").value;
+        const maxSpeed = document.getElementById("maxSpeed").value;
+        const sourceLocation = document
+          .getElementById("sourceLocation")
+          .value.toLowerCase();
+
+        const filteredData = cmeData.filter((cme) => {
+          const cmeDate = new Date(cme.startTime);
+          const speedMatch =
+            (!minSpeed || cme.cmeAnalyses[0]?.speed >= parseFloat(minSpeed)) &&
+            (!maxSpeed || cme.cmeAnalyses[0]?.speed <= parseFloat(maxSpeed));
+          const locationMatch =
+            !sourceLocation ||
+            (cme.sourceLocation &&
+              cme.sourceLocation.toLowerCase().includes(sourceLocation));
+
+          return (
+            (!startDate || cmeDate >= new Date(startDate)) &&
+            (!endDate || cmeDate <= new Date(endDate)) &&
+            speedMatch &&
+            locationMatch
+          );
+        });
+
+        updateChartsWithFilteredData(filteredData);
+      }
+
+      function updateChartsWithFilteredData(filteredData) {
+        // Update Speed & Half-Angle Chart
+        const speedHalfAngleChart = Chart.getChart("speedHalfAngleChart");
+        speedHalfAngleChart.data.datasets[0].data = filteredData.map((cme) => ({
+          x: cme.cmeAnalyses[0]?.speed || 0,
+          y: cme.cmeAnalyses[0]?.halfAngle || 0,
+        }));
+        speedHalfAngleChart.update();
+
+        // Update Time Frequency Chart
+        const timeFrequencyChart = Chart.getChart("timeFrequencyChart");
+        const dateCounter = filteredData.reduce((acc, cme) => {
+          const date = cme.startTime.split("T")[0];
+          acc[date] = (acc[date] || 0) + 1;
+          return acc;
+        }, {});
+        timeFrequencyChart.data.labels = Object.keys(dateCounter);
+        timeFrequencyChart.data.datasets[0].data = Object.values(dateCounter);
+        timeFrequencyChart.update();
+
+        // Update Instrument Pie Chart
+        const instrumentPieChart = Chart.getChart("instrumentPieChart");
+        const instrumentCounter = filteredData.reduce((acc, cme) => {
+          cme.instruments.forEach((instrument) => {
+            const instrumentName = instrument.displayName || "Unknown";
+            acc[instrumentName] = (acc[instrumentName] || 0) + 1;
+          });
+          return acc;
+        }, {});
+        instrumentPieChart.data.labels = Object.keys(instrumentCounter);
+        instrumentPieChart.data.datasets[0].data =
+          Object.values(instrumentCounter);
+        instrumentPieChart.update();
+
+        // Update Earth Impact Timeline
+        d3.select("#earthImpactTimeline").select("svg").remove();
+        createEarthImpactTimeline(filteredData);
+
+        // Update 3D CME Propagation
+        document.getElementById("cmePropagation3D").innerHTML = "";
+        create3DPropagation(filteredData);
+
+        // Update Latitude & Longitude Heatmap
+        d3.select("#latLongHeatmap").select("svg").remove();
+        createLatLongHeatmap(filteredData);
+
+        // Update CME Events List
+        renderCMEEventsList(filteredData);
+      }
+
+      function showLoader() {
+        loader.classList.remove("hidden");
+      }
+
+      function hideLoader() {
+        loader.classList.add("hidden");
+      }
+
+      // Close modal when clicking the close button or outside the modal
+      document.getElementById("closeModal").addEventListener("click", () => {
+        document.getElementById("cmeDetailsModal").classList.add("hidden");
+      });
+
+      window.addEventListener("click", (event) => {
+        const modal = document.getElementById("cmeDetailsModal");
+        if (event.target === modal) {
+          modal.classList.add("hidden");
+        }
+      });
+    </script>
+  </body>
+</html>
