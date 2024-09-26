@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mars Rover Photo Explorer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.1/chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <style>
+      body {
+        background-color: #1a1a1a;
+        color: #f0f0f0;
+      }
+      .mars-theme {
+        background-color: #8b4513;
+      }
+    </style>
+  </head>
+  <body class="font-sans">
+    <header class="bg-red-900 text-white p-4">
+      <h1 class="text-3xl font-bold">Mars Rover Photo Explorer</h1>
+    </header>
+
+    <main class="container mx-auto px-4 py-8">
+      <section id="filters" class="mb-8">
+        <h2 class="text-2xl font-bold mb-4">Filters</h2>
+        <form id="filter-form" class="space-y-4">
+          <div class="flex space-x-4">
+            <div>
+              <label for="sol" class="block">Sol:</label>
+              <input
+                type="number"
+                id="sol"
+                name="sol"
+                min="0"
+                value="1000"
+                class="rounded text-black"
+              />
+            </div>
+            <div>
+              <label for="earth_date" class="block">Earth Date:</label>
+              <input
+                type="date"
+                id="earth_date"
+                name="earth_date"
+                class="rounded text-black"
+              />
+            </div>
+            <div>
+              <label for="camera" class="block">Camera:</label>
+              <select id="camera" name="camera" class="rounded text-black">
+                <option value="">All Cameras</option>
+                <option value="FHAZ">Front Hazard Avoidance Camera</option>
+                <option value="RHAZ">Rear Hazard Avoidance Camera</option>
+                <option value="MAST">Mast Camera</option>
+                <option value="CHEMCAM">Chemistry and Camera Complex</option>
+                <option value="MAHLI">Mars Hand Lens Imager</option>
+                <option value="MARDI">Mars Descent Imager</option>
+                <option value="NAVCAM">Navigation Camera</option>
+              </select>
+            </div>
+          </div>
+          <button
+            type="submit"
+            class="bg-red-700 hover:bg-red-600 text-white font-bold py-2 px-4 rounded"
+          >
+            Apply Filters
+          </button>
+        </form>
+      </section>
+
+      <section id="stats" class="mb-8">
+        <h2 class="text-2xl font-bold mb-4">Mission Statistics</h2>
+        <div id="stats-content" class="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <!-- Stats will be populated here -->
+        </div>
+      </section>
+
+      <section id="visualizations" class="mb-8">
+        <h2 class="text-2xl font-bold mb-4">Visualizations</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <h3 class="text-xl font-bold mb-2">Camera Usage</h3>
+            <canvas id="camera-usage-chart"></canvas>
+          </div>
+          <div>
+            <h3 class="text-xl font-bold mb-2">Photo Distribution</h3>
+            <canvas id="photo-distribution-chart"></canvas>
+          </div>
+          <div>
+            <h3 class="text-xl font-bold mb-2">Earth Date vs. Sol</h3>
+            <canvas id="earth-date-sol-chart"></canvas>
+          </div>
+          <div>
+            <h3 class="text-xl font-bold mb-2">Mars Map</h3>
+            <div id="mars-map" class="h-64 bg-red-800 rounded-lg"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="mission-timeline-section" class="mb-8">
+        <h2 class="text-2xl font-bold mb-4">Mission Timeline</h2>
+        <canvas id="mission-timeline"></canvas>
+      </section>
+
+      <section id="photo-grid" class="mb-8">
+        <h2 class="text-2xl font-bold mb-4">Mars Photos</h2>
+        <div
+          id="photos-container"
+          class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
+        >
+          <!-- Photos will be populated here -->
+        </div>
+      </section>
+    </main>
+
+    <footer class="bg-red-900 text-white p-4 mt-8">
+      <p>
+        &copy; 2024 Mars Rover Photo Explorer. Data provided by NASA's Mars
+        Rover Photos API.
+      </p>
+    </footer>
+
+    <div
+      id="lightbox"
+      class="fixed inset-0 bg-black bg-opacity-75 hidden flex items-center justify-center"
+    >
+      <div class="max-w-4xl max-h-full relative">
+        <img
+          id="lightbox-image"
+          src=""
+          alt="Full size rover photo"
+          class="max-w-full max-h-full"
+        />
+        <div
+          id="lightbox-info"
+          class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-75 text-white p-4"
+        >
+          <p id="lightbox-name" class="text-lg font-bold"></p>
+          <p id="lightbox-camera"></p>
+          <p id="lightbox-date"></p>
+        </div>
+        <button
+          id="prev-button"
+          class="absolute left-0 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-2 rounded-r"
+        >
+          &#10094; Prev
+        </button>
+        <button
+          id="next-button"
+          class="absolute right-0 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-2 rounded-l"
+        >
+          Next &#10095;
+        </button>
+        <button
+          id="close-button"
+          class="absolute top-4 right-4 text-white text-2xl"
+        >
+          &times;
+        </button>
+      </div>
+    </div>
+
+    <div
+      id="loader"
+      class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center"
+    >
+      <div
+        class="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-red-500"
+      ></div>
+    </div>
+
+    <script>
+      // Global variables
+      let allPhotos = [];
+      let filteredPhotos = [];
+      const API_KEY = "DEMO_KEY";
+      const API_BASE_URL =
+        "https://api.nasa.gov/mars-photos/api/v1/rovers/curiosity/photos";
+
+      // DOM elements
+      const filterForm = document.getElementById("filter-form");
+      const photosContainer = document.getElementById("photos-container");
+      const loader = document.getElementById("loader");
+      const lightbox = document.getElementById("lightbox");
+      const lightboxImage = document.getElementById("lightbox-image");
+
+      // Chart objects
+      let cameraUsageChart = null;
+      let photoDistributionChart = null;
+      let earthDateSolChart = null;
+
+      // Event listeners
+      filterForm.addEventListener("submit", handleFilterSubmit);
+      lightbox.addEventListener("click", closeLightbox);
+
+      // Initialize the application
+      async function init() {
+        showLoader();
+        try {
+          const initialSol = 1000;
+          const url = `${API_BASE_URL}?sol=${initialSol}&api_key=${API_KEY}`;
+          const response = await fetch(url);
+          const data = await response.json();
+          allPhotos = data.photos;
+          filteredPhotos = allPhotos;
+          updateUI();
+        } catch (error) {
+          console.error("Error fetching initial data:", error);
+          showError("Failed to fetch initial data. Please try again later.");
+        } finally {
+          hideLoader();
+        }
+      }
+
+      // Handle filter form submission
+      function handleFilterSubmit(event) {
+        event.preventDefault();
+        const formData = new FormData(filterForm);
+        const filters = Object.fromEntries(formData.entries());
+        applyFilters(filters);
+      }
+
+      // Apply filters to the photos
+      function applyFilters(filters) {
+        filteredPhotos = allPhotos.filter((photo) => {
+          if (filters.sol && photo.sol !== parseInt(filters.sol)) return false;
+          if (filters.earth_date && photo.earth_date !== filters.earth_date)
+            return false;
+          if (filters.camera && photo.camera.name !== filters.camera)
+            return false;
+          return true;
+        });
+        updateUI();
+      }
+
+      // Update the UI with filtered photos and visualizations
+      function updateUI() {
+        displayPhotos();
+        updateVisualizations();
+        updateStats();
+      }
+
+      // Display photos in the grid
+      function displayPhotos() {
+        photosContainer.innerHTML = "";
+        filteredPhotos.forEach((photo, index) => {
+          const photoElement = createPhotoElement(photo, index);
+          photosContainer.appendChild(photoElement);
+        });
+      }
+
+      // Create a photo element
+      function createPhotoElement(photo, index) {
+        const div = document.createElement("div");
+        div.className = "bg-gray-800 rounded-lg overflow-hidden";
+        div.innerHTML = `
+        <img src="${photo.img_src}" alt="Mars Rover Photo" class="w-full h-48 object-cover cursor-pointer" loading="lazy">
+        <div class="p-4">
+            <p class="text-sm">Sol: ${photo.sol}</p>
+            <p class="text-sm">Earth Date: ${photo.earth_date}</p>
+            <p class="text-sm">Camera: ${photo.camera.full_name}</p>
+        </div>
+    `;
+        div
+          .querySelector("img")
+          .addEventListener("click", () => openLightbox(index));
+        return div;
+      }
+
+      // Open lightbox
+      function openLightbox(index) {
+        currentPhotoIndex = index;
+        updateLightboxImage();
+        lightbox.classList.remove("hidden");
+      }
+
+      // New function to show the previous photo
+      function showPreviousPhoto() {
+        if (currentPhotoIndex > 0) {
+          currentPhotoIndex--;
+          updateLightboxImage();
+        }
+      }
+
+      // New function to show the next photo
+      function showNextPhoto() {
+        if (currentPhotoIndex < filteredPhotos.length - 1) {
+          currentPhotoIndex++;
+          updateLightboxImage();
+        }
+      }
+
+      // function to update the lightbox image
+      function updateLightboxImage() {
+        const photo = filteredPhotos[currentPhotoIndex];
+        lightboxImage.src = photo.img_src;
+        lightboxImage.alt = `Mars Rover Photo - Sol ${photo.sol}, Camera: ${photo.camera.full_name}`;
+
+        // Update lightbox information
+        document.getElementById(
+          "lightbox-name"
+        ).textContent = `Photo from Sol ${photo.sol}`;
+        document.getElementById(
+          "lightbox-camera"
+        ).textContent = `Camera: ${photo.camera.full_name}`;
+        document.getElementById(
+          "lightbox-date"
+        ).textContent = `Earth Date: ${photo.earth_date}`;
+
+        updateLightboxButtons();
+      }
+
+      // New function to update lightbox button states
+      function updateLightboxButtons() {
+        prevButton.disabled = currentPhotoIndex === 0;
+        nextButton.disabled = currentPhotoIndex === filteredPhotos.length - 1;
+        prevButton.style.opacity = prevButton.disabled ? 0.5 : 1;
+        nextButton.style.opacity = nextButton.disabled ? 0.5 : 1;
+      }
+
+      // Close lightbox
+      function closeLightbox() {
+        lightbox.classList.add("hidden");
+      }
+
+      // Update visualizations
+      function updateVisualizations() {
+        updateCameraUsageChart();
+        updatePhotoDistributionChart();
+        updateEarthDateSolChart();
+        updateMarsMap();
+        updateMissionTimeline();
+      }
+
+      // Update camera usage chart
+      function updateCameraUsageChart() {
+        const cameraUsage = {};
+        filteredPhotos.forEach((photo) => {
+          cameraUsage[photo.camera.name] =
+            (cameraUsage[photo.camera.name] || 0) + 1;
+        });
+
+        const ctx = document
+          .getElementById("camera-usage-chart")
+          .getContext("2d");
+
+        if (cameraUsageChart) {
+          cameraUsageChart.destroy();
+        }
+
+        cameraUsageChart = new Chart(ctx, {
+          type: "doughnut",
+          data: {
+            labels: Object.keys(cameraUsage),
+            datasets: [
+              {
+                data: Object.values(cameraUsage),
+                backgroundColor: [
+                  "#FF6384",
+                  "#36A2EB",
+                  "#FFCE56",
+                  "#4BC0C0",
+                  "#9966FF",
+                  "#FF9F40",
+                  "#FF6384",
+                ],
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: {
+                position: "right",
+              },
+            },
+          },
+        });
+      }
+
+      // Update photo distribution chart
+      function updatePhotoDistributionChart() {
+        const photoDistribution = {};
+        filteredPhotos.forEach((photo) => {
+          photoDistribution[photo.sol] =
+            (photoDistribution[photo.sol] || 0) + 1;
+        });
+
+        const ctx = document
+          .getElementById("photo-distribution-chart")
+          .getContext("2d");
+
+        if (photoDistributionChart) {
+          photoDistributionChart.destroy();
+        }
+
+        photoDistributionChart = new Chart(ctx, {
+          type: "bar",
+          data: {
+            labels: Object.keys(photoDistribution),
+            datasets: [
+              {
+                label: "Photos per Sol",
+                data: Object.values(photoDistribution),
+                backgroundColor: "#36A2EB",
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            scales: {
+              y: {
+                beginAtZero: true,
+              },
+            },
+          },
+        });
+      }
+
+      // Update Earth Date vs. Sol chart
+      function updateEarthDateSolChart() {
+        const data = filteredPhotos.map((photo) => ({
+          x: new Date(photo.earth_date),
+          y: photo.sol,
+        }));
+
+        const ctx = document
+          .getElementById("earth-date-sol-chart")
+          .getContext("2d");
+
+        if (earthDateSolChart) {
+          earthDateSolChart.destroy();
+        }
+
+        if (data.length === 0) {
+          ctx.canvas.style.display = "none";
+          const noDataMsg = document.getElementById("earth-date-sol-no-data");
+          if (!noDataMsg) {
+            const msg = document.createElement("p");
+            msg.id = "earth-date-sol-no-data";
+            msg.className = "text-center text-gray-500 mt-4";
+            msg.textContent = "No data available for the selected filters";
+            ctx.canvas.parentNode.appendChild(msg);
+          }
+          return;
+        } else {
+          ctx.canvas.style.display = "block";
+          const noDataMsg = document.getElementById("earth-date-sol-no-data");
+          if (noDataMsg) noDataMsg.remove();
+        }
+
+        earthDateSolChart = new Chart(ctx, {
+          type: "scatter",
+          data: {
+            datasets: [
+              {
+                label: "Earth Date vs. Sol",
+                data: data,
+                backgroundColor: "#FF6384",
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            scales: {
+              x: {
+                type: "time",
+                time: {
+                  unit: "day",
+                },
+                title: {
+                  display: true,
+                  text: "Earth Date",
+                },
+                grid: {
+                  color: "rgba(255, 255, 255, 0.1)",
+                },
+              },
+              y: {
+                title: {
+                  display: true,
+                  text: "Sol",
+                },
+                grid: {
+                  color: "rgba(255, 255, 255, 0.1)",
+                },
+              },
+            },
+            plugins: {
+              legend: {
+                labels: {
+                  color: "white",
+                },
+              },
+            },
+          },
+        });
+      }
+
+      // Update Mars map
+      function updateMarsMap() {
+        const mapContainer = document.getElementById("mars-map");
+        mapContainer.innerHTML = `
+        <div class="h-full flex items-center justify-center bg-red-900 rounded-lg">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="w-full h-full">
+                <circle cx="50" cy="50" r="40" fill="#8B4513" />
+                <circle cx="30" cy="30" r="10" fill="#A0522D" />
+                <circle cx="70" cy="60" r="15" fill="#A0522D" />
+                <text x="50" y="50" text-anchor="middle" dy=".3em" fill="white" font-size="8">Mars</text>
+            </svg>
+        </div>
+    `;
+      }
+
+      // Update mission timeline
+      function updateMissionTimeline() {
+        const timelineContainer = document.getElementById("mission-timeline");
+        if (!timelineContainer) return;
+
+        const roverInfo = filteredPhotos[0]?.rover;
+        if (!roverInfo) {
+          timelineContainer.style.display = "none";
+          const noDataMsg = document.getElementById("mission-timeline-no-data");
+          if (!noDataMsg) {
+            const msg = document.createElement("p");
+            msg.id = "mission-timeline-no-data";
+            msg.className = "text-center text-gray-500 mt-4";
+            msg.textContent = "No mission data available";
+            timelineContainer.parentNode.appendChild(msg);
+          }
+          return;
+        } else {
+          timelineContainer.style.display = "block";
+          const noDataMsg = document.getElementById("mission-timeline-no-data");
+          if (noDataMsg) noDataMsg.remove();
+        }
+
+        const launchDate = new Date(roverInfo.launch_date);
+        const landingDate = new Date(roverInfo.landing_date);
+        const latestPhotoDate = new Date(roverInfo.max_date);
+
+        const timelineData = [
+          { date: launchDate, label: "Launch" },
+          { date: landingDate, label: "Landing" },
+          { date: latestPhotoDate, label: "Latest Photo" },
+        ];
+
+        const ctx = timelineContainer.getContext("2d");
+        new Chart(ctx, {
+          type: "line",
+          data: {
+            labels: timelineData.map((d) => d.label),
+            datasets: [
+              {
+                label: "Mission Timeline",
+                data: timelineData.map((d) => ({ x: d.date, y: 1 })),
+                pointBackgroundColor: ["#FF6384", "#36A2EB", "#FFCE56"],
+                pointRadius: 8,
+                pointHoverRadius: 10,
+                showLine: true,
+                borderColor: "rgba(255, 255, 255, 0.5)",
+                tension: 0.4,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            scales: {
+              x: {
+                type: "time",
+                time: {
+                  unit: "month",
+                },
+                title: {
+                  display: true,
+                  text: "Date",
+                  color: "white",
+                },
+                grid: {
+                  color: "rgba(255, 255, 255, 0.1)",
+                },
+                ticks: {
+                  color: "white",
+                },
+              },
+              y: {
+                display: false,
+              },
+            },
+            plugins: {
+              legend: {
+                labels: {
+                  color: "white",
+                },
+              },
+              tooltip: {
+                callbacks: {
+                  label: function (context) {
+                    const label = context.dataset.label || "";
+                    const date = new Date(context.parsed.x);
+                    return `${label}: ${date.toDateString()}`;
+                  },
+                },
+              },
+            },
+          },
+        });
+      }
+
+      // Update mission statistics
+      function updateStats() {
+        const statsContent = document.getElementById("stats-content");
+        const roverInfo = filteredPhotos[0]?.rover;
+
+        const stats = {
+          "Total Photos": roverInfo.total_photos,
+          "Max Sol": roverInfo.max_sol,
+          "Launch Date": new Date(roverInfo.launch_date).toLocaleDateString(),
+          "Landing Date": new Date(roverInfo.landing_date).toLocaleDateString(),
+          Status: roverInfo.status,
+        };
+
+        statsContent.innerHTML = "";
+        Object.entries(stats).forEach(([key, value]) => {
+          const statElement = document.createElement("div");
+          statElement.className = "bg-gray-800 p-4 rounded-lg";
+          statElement.innerHTML = `
+            <h3 class="text-lg font-bold">${key}</h3>
+            <p class="text-2xl">${value}</p>
+        `;
+          statsContent.appendChild(statElement);
+        });
+      }
+
+      // Show loader
+      function showLoader() {
+        loader.classList.remove("hidden");
+      }
+
+      // Hide loader
+      function hideLoader() {
+        loader.classList.add("hidden");
+      }
+
+      // Show error message
+      function showError(message) {
+        const errorElement = document.createElement("div");
+        errorElement.className = "bg-red-500 text-white p-4 rounded-lg mb-4";
+        errorElement.textContent = message;
+        document.querySelector("main").prepend(errorElement);
+        setTimeout(() => errorElement.remove(), 5000);
+      }
+
+      // Global variables (add these at the top of your file)
+      let currentPhotoIndex = 0;
+
+      // DOM elements (add these to your existing DOM elements section)
+      const prevButton = document.getElementById("prev-button");
+      const nextButton = document.getElementById("next-button");
+      const closeButton = document.getElementById("close-button");
+
+      // event listeners
+      prevButton.addEventListener("click", (e) => {
+        e.stopPropagation(); // Prevent event from bubbling up to lightbox
+        showPreviousPhoto();
+      });
+      nextButton.addEventListener("click", (e) => {
+        e.stopPropagation(); // Prevent event from bubbling up to lightbox
+        showNextPhoto();
+      });
+      closeButton.addEventListener("click", closeLightbox);
+
+      // lightbox click event to only close when clicking outside the image
+      lightbox.addEventListener("click", (e) => {
+        if (e.target === lightbox) {
+          closeLightbox();
+        }
+      });
+
+      // Initialize the application
+      init();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mars Rover Photo Explorer</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/leaflet.css"
+    />
+    <style>
+      /* CSS will go here */
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <!-- Filters, Photo Grid, Lightbox, Charts, Map, Stats -->
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+      // JavaScript will go here
+      async function init() {
+        const API_KEY = "DEMO_KEY"; // Replace with actual key for production
+        let photos = [];
+        let filteredPhotos = [];
+
+        // Fetch photos
+        async function fetchPhotos(params = {}) {
+          let url = `https://api.nasa.gov/mars-photos/api/v1/rovers/curiosity/photos?sol=1000&api_key=${API_KEY}`;
+          for (let key in params) {
+            url += `&${key}=${params[key]}`;
+          }
+          try {
+            const response = await fetch(url);
+            const data = await response.json();
+            photos = data.photos;
+            filteredPhotos = [...photos];
+            updateUI();
+          } catch (error) {
+            console.error("Failed to fetch photos:", error);
+            // Handle error UI
+          }
+        }
+
+        // UI update functions, event listeners, chart creation, etc.
+        // ...
+
+        // Initial load
+        fetchPhotos();
+      }
+
+      init();
+    </script>
+  </body>
+</html>

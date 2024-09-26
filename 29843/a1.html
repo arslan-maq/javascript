@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mars Rover Photo Explorer</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+    />
+    <style>
+      body {
+        background: #8c5230;
+        color: #e0e0e0;
+      }
+      .filter-container,
+      .photo-grid,
+      .timeline,
+      .mars-map,
+      .stats {
+        margin: 20px;
+        padding: 20px;
+        background: rgba(0, 0, 0, 0.5);
+      }
+      .photo-item img {
+        width: 100%;
+        cursor: pointer;
+        transition: transform 0.2s;
+      }
+      .photo-item img:hover {
+        transform: scale(1.05);
+      }
+      .lightbox {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.9);
+        display: none;
+      }
+      .lightbox-content {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        max-width: 90%;
+        max-height: 90%;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1 class="text-center mt-4">Curiosity Rover Photo Explorer</h1>
+      <div class="filter-container">
+        <select id="solFilter" class="form-select mb-2"></select>
+        <select id="cameraFilter" class="form-select mb-2"></select>
+        <input type="date" id="dateFilter" class="form-control mb-2" />
+      </div>
+      <div class="photo-grid row" id="photoGrid"></div>
+
+      <div class="timeline" id="photoTimeline"></div>
+      <div id="marsMap" class="mars-map" style="height: 400px"></div>
+      <div class="stats" id="missionStats"></div>
+    </div>
+
+    <div class="lightbox" id="lightbox">
+      <div class="lightbox-content">
+        <img id="lightboxImg" />
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", async () => {
+        const API_KEY = "DEMO_KEY";
+        const API_URL = `https://api.nasa.gov/mars-photos/api/v1/rovers/curiosity/photos?sol=1000&api_key=${API_KEY}`;
+        let allPhotos = [];
+        let filteredPhotos = [];
+
+        async function fetchPhotos() {
+          try {
+            const response = await fetch(API_URL);
+            const data = await response.json();
+            allPhotos = data.photos;
+            filteredPhotos = [...allPhotos];
+            populateFilters();
+            updateDisplay();
+          } catch (error) {
+            console.error("Failed to fetch photos:", error);
+          }
+        }
+
+        function populateFilters() {
+          const sols = [...new Set(allPhotos.map((p) => p.sol))].sort(
+            (a, b) => b - a
+          );
+          const cameras = [...new Set(allPhotos.map((p) => p.camera.name))];
+
+          sols.forEach((sol) => {
+            const option = document.createElement("option");
+            option.value = sol;
+            option.textContent = `Sol ${sol}`;
+            document.getElementById("solFilter").appendChild(option);
+          });
+
+          cameras.forEach((camera) => {
+            const option = document.createElement("option");
+            option.value = camera;
+            option.textContent = camera;
+            document.getElementById("cameraFilter").appendChild(option);
+          });
+        }
+
+        function filterPhotos() {
+          const sol = document.getElementById("solFilter").value;
+          const camera = document.getElementById("cameraFilter").value;
+          const date = document.getElementById("dateFilter").value;
+
+          filteredPhotos = allPhotos.filter(
+            (photo) =>
+              (sol === "" || photo.sol == sol) &&
+              (camera === "" || photo.camera.name === camera) &&
+              (date === "" || photo.earth_date === date)
+          );
+          updateDisplay();
+        }
+
+        function updateDisplay() {
+          const grid = document.getElementById("photoGrid");
+          grid.innerHTML = "";
+          filteredPhotos.forEach((photo) => {
+            const div = document.createElement("div");
+            div.className = "col-md-4 col-sm-6 mb-4 photo-item";
+            div.innerHTML = `
+                <img src="${photo.img_src}" alt="Rover photo" data-full="${photo.img_src}" loading="lazy">
+                <p>Sol: ${photo.sol}, Camera: ${photo.camera.name}</p>
+            `;
+            grid.appendChild(div);
+          });
+
+          setupLightbox();
+          updateTimeline();
+          updateMap();
+          updateStats();
+        }
+
+        function setupLightbox() {
+          const lightbox = document.getElementById("lightbox");
+          const lightboxImg = document.getElementById("lightboxImg");
+          document.querySelectorAll(".photo-item img").forEach((img) => {
+            img.onclick = () => {
+              lightbox.style.display = "block";
+              lightboxImg.src = img.getAttribute("data-full");
+            };
+          });
+
+          lightbox.onclick = () => (lightbox.style.display = "none");
+        }
+
+        function updateTimeline() {
+          // Implementation for timeline visualization using Chart.js
+        }
+
+        function updateMap() {
+          // Implementation for Mars map with photo locations using Leaflet
+        }
+
+        function updateStats() {
+          // Implementation for displaying mission statistics
+        }
+
+        document
+          .getElementById("solFilter")
+          .addEventListener("change", filterPhotos);
+        document
+          .getElementById("cameraFilter")
+          .addEventListener("change", filterPhotos);
+        document
+          .getElementById("dateFilter")
+          .addEventListener("change", filterPhotos);
+
+        await fetchPhotos();
+      });
+    </script>
+  </body>
+</html>
