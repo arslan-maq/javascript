@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ISS Tracker Widget</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+    />
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      @keyframes orbit {
+        0% {
+          transform: rotate(0deg) translateX(50px) rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg) translateX(50px) rotate(-360deg);
+        }
+      }
+      .orbit {
+        animation: orbit 10s linear infinite;
+      }
+      #map {
+        height: 400px;
+        width: 100%;
+      }
+      .bg-space {
+        background: linear-gradient(to bottom, #000033, #000066);
+      }
+    </style>
+  </head>
+  <body class="bg-gray-100 flex flex-col min-h-screen">
+    <header class="bg-space text-white p-4">
+      <div class="container mx-auto flex items-center justify-between">
+        <div class="flex items-center">
+          <svg class="w-12 h-12 mr-4" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="45" fill="#4299e1" />
+            <circle cx="50" cy="50" r="35" fill="#2b6cb0" />
+            <circle class="orbit" cx="50" cy="0" r="5" fill="#ecc94b" />
+          </svg>
+          <h1 class="text-2xl font-bold">ISS Tracker</h1>
+        </div>
+        <nav>
+          <ul class="flex space-x-4">
+            <li><a href="#" class="hover:text-blue-300">Home</a></li>
+            <li><a href="#" class="hover:text-blue-300">About</a></li>
+            <li><a href="#" class="hover:text-blue-300">Contact</a></li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+
+    <main class="flex-grow">
+      <div class="container mx-auto p-4 max-w-4xl">
+        <div class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
+          <h2 class="text-xl font-bold mb-4">Filters</h2>
+          <div class="grid grid-cols-2 gap-4 mb-4">
+            <input
+              type="date"
+              id="start-date"
+              placeholder="Start Date"
+              class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+            />
+            <input
+              type="date"
+              id="end-date"
+              placeholder="End Date"
+              class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+            />
+            <input
+              type="number"
+              id="min-speed"
+              placeholder="Min Speed (km/h)"
+              class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+            />
+            <input
+              type="number"
+              id="max-speed"
+              placeholder="Max Speed (km/h)"
+              class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+            />
+            <select
+              id="spacecraft-filter"
+              class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+            >
+              <option value="">All Spacecraft</option>
+            </select>
+          </div>
+          <button
+            id="apply-filters"
+            class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded w-full"
+          >
+            Apply Filters
+          </button>
+        </div>
+        <div class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
+          <div class="flex justify-between items-center mb-4">
+            <h1 class="text-2xl font-bold">Current ISS Location</h1>
+            <button
+              id="infoButton"
+              class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+            >
+              Info
+            </button>
+          </div>
+          <div
+            id="infoAlert"
+            class="hidden bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4 mb-4"
+            role="alert"
+          >
+            <p class="font-bold">About the ISS</p>
+            <p>
+              The International Space Station (ISS) is a modular space station
+              in low Earth orbit. It's a multinational collaborative project
+              involving five participating space agencies: NASA (United States),
+              Roscosmos (Russia), JAXA (Japan), ESA (Europe), and CSA (Canada).
+              The station serves as a microgravity and space environment
+              research laboratory in which scientific research is conducted in
+              astrobiology, astronomy, meteorology, physics, and other fields.
+            </p>
+          </div>
+          <div id="map" class="mb-4"></div>
+          <div class="grid grid-cols-2 gap-4 mb-4">
+            <div>
+              <h3 class="font-semibold mb-2">Current Position</h3>
+              <p>Latitude: <span id="iss-lat"></span></p>
+              <p>Longitude: <span id="iss-lon"></span></p>
+              <p>Speed: <span id="iss-speed"></span> km/h</p>
+            </div>
+            <div class="bg-gray-100 p-4 mb-4 rounded shadow">
+              <h2 class="text-xl font-bold">
+                People Currently in Space:
+                <span id="people-count">Loading...</span>
+              </h2>
+              <ul id="astronauts-list" class="list-disc pl-5"></ul>
+            </div>
+          </div>
+          <div class="mb-4">
+            <h3 class="font-semibold mb-2">Speed Chart</h3>
+            <canvas id="speedChart"></canvas>
+          </div>
+          <button
+            id="refreshButton"
+            class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded w-full"
+          >
+            Refresh Data
+          </button>
+        </div>
+        <div class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
+          <h2 class="text-xl font-bold mb-4">Upcoming SpaceX Launches</h2>
+          <ul id="launches-list" class="list-disc pl-5"></ul>
+        </div>
+
+        <div class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
+          <h2 class="text-xl font-bold mb-4">Astronomy Picture of the Day</h2>
+          <div id="apod" class="flex flex-col items-center">
+            <img id="apod-image" class="mb-4 max-w-full" />
+            <p id="apod-title" class="text-lg font-semibold mb-2"></p>
+            <p id="apod-description"></p>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="bg-space text-white p-4 mt-8">
+      <div class="container mx-auto text-center">
+        <p>&copy; 2024 ISS Tracker. All rights reserved.</p>
+      </div>
+    </footer>
+
+    <script>
+      // Initialize Leaflet map
+      const map = L.map("map").setView([0, 0], 2);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "© OpenStreetMap contributors",
+      }).addTo(map);
+
+      const issIcon = L.icon({
+        iconUrl:
+          "https://upload.wikimedia.org/wikipedia/commons/d/d0/International_Space_Station.svg",
+        iconSize: [50, 50],
+        iconAnchor: [25, 25],
+      });
+
+      let issMarker = L.marker([0, 0], { icon: issIcon }).addTo(map);
+      let speedChart = null;
+      let historicalData = []; // Array to store all historical data points
+
+      // Initialize Chart.js for visualizing speed
+      function initializeSpeedChart() {
+        const ctx = document.getElementById("speedChart").getContext("2d");
+        speedChart = new Chart(ctx, {
+          type: "line",
+          data: {
+            labels: [],
+            datasets: [
+              {
+                label: "ISS Speed (km/h)",
+                data: [],
+                borderColor: "rgba(54, 162, 235, 1)",
+                borderWidth: 2,
+                fill: false,
+                tension: 0.1,
+              },
+            ],
+          },
+          options: {
+            scales: {
+              x: { title: { display: true, text: "Time" } },
+              y: { title: { display: true, text: "Speed (km/h)" } },
+            },
+          },
+        });
+      }
+
+      initializeSpeedChart();
+
+      // Fetch the current ISS position data and store it
+      const fetchISSData = async () => {
+        try {
+          const response = await axios.get(
+            "http://api.open-notify.org/iss-now.json"
+          );
+          const { latitude, longitude } = response.data.iss_position;
+          const timestamp = response.data.timestamp;
+          const currentLocation = [parseFloat(latitude), parseFloat(longitude)];
+
+          issMarker.setLatLng(currentLocation);
+          map.setView(currentLocation, map.getZoom());
+
+          const speed = calculateSpeed(currentLocation);
+          updateSpeedChart(new Date().toLocaleTimeString(), speed);
+
+          document.getElementById("iss-lat").textContent = latitude;
+          document.getElementById("iss-lon").textContent = longitude;
+          document.getElementById("iss-speed").textContent = speed.toFixed(2);
+
+          // Save the data point for historical tracking
+          historicalData.push({ timestamp, latitude, longitude, speed });
+
+          // Apply filters after updating data
+          applyFilters();
+        } catch (error) {
+          console.error("Error fetching ISS data:", error);
+        }
+      };
+
+      // Calculate ISS speed using haversine formula
+      let previousLocation = null;
+      let previousTimestamp = null;
+
+      function calculateSpeed(currentLocation) {
+        if (previousLocation) {
+          const distance = haversineDistance(previousLocation, currentLocation);
+          const timeDifference =
+            new Date().getTime() / 1000 - previousTimestamp; // Time in seconds
+          const speed = (distance / timeDifference) * 3600; // Convert from km/s to km/h
+          previousLocation = currentLocation;
+          previousTimestamp = new Date().getTime() / 1000;
+          return speed;
+        }
+        previousLocation = currentLocation;
+        previousTimestamp = new Date().getTime() / 1000;
+        return 0;
+      }
+
+      // Helper function to calculate distance between two coordinates
+      function haversineDistance([lat1, lon1], [lat2, lon2]) {
+        const R = 6371; // Radius of Earth in km
+        const dLat = ((lat2 - lat1) * Math.PI) / 180;
+        const dLon = ((lon2 - lon1) * Math.PI) / 180;
+        const a =
+          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+          Math.cos((lat1 * Math.PI) / 180) *
+            Math.cos((lat2 * Math.PI) / 180) *
+            Math.sin(dLon / 2) *
+            Math.sin(dLon / 2);
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      }
+
+      // Update speed chart
+      function updateSpeedChart(time, speed) {
+        if (speedChart.data.labels.length >= 10) {
+          speedChart.data.labels.shift();
+          speedChart.data.datasets[0].data.shift();
+        }
+        speedChart.data.labels.push(time);
+        speedChart.data.datasets[0].data.push(speed);
+        speedChart.update();
+      }
+
+      // Fetch astronaut data and populate the spacecraft filter
+      const fetchAstronautsData = async () => {
+        try {
+          const response = await axios.get(
+            "http://api.open-notify.org/astros.json"
+          );
+          const people = response.data.people;
+
+          document.getElementById("people-count").textContent = people.length;
+
+          const astronautsList = document.getElementById("astronauts-list");
+          astronautsList.innerHTML = "";
+
+          // Collect spacecraft for the dropdown filter
+          const spacecraftSet = new Set();
+
+          people.forEach((person) => {
+            spacecraftSet.add(person.craft);
+
+            const listItem = document.createElement("li");
+            listItem.textContent = `${person.name} (${person.craft})`;
+            astronautsList.appendChild(listItem);
+          });
+
+          // Populate spacecraft filter dropdown
+          const spacecraftFilter = document.getElementById("spacecraft-filter");
+          spacecraftFilter.innerHTML =
+            '<option value="">All Spacecraft</option>';
+          spacecraftSet.forEach((craft) => {
+            const option = document.createElement("option");
+            option.value = craft;
+            option.textContent = craft;
+            spacecraftFilter.appendChild(option);
+          });
+
+          // Store the full list of astronauts for filtering
+          window.allAstronauts = people;
+
+          // Apply initial filter
+          filterAstronauts();
+        } catch (error) {
+          console.error("Error fetching astronauts data:", error);
+        }
+      };
+
+      const filterAstronauts = () => {
+        const selectedSpacecraft =
+          document.getElementById("spacecraft-filter").value;
+        const astronautsList = document.getElementById("astronauts-list");
+        astronautsList.innerHTML = "";
+
+        const filteredAstronauts = window.allAstronauts.filter(
+          (person) =>
+            selectedSpacecraft === "" || person.craft === selectedSpacecraft
+        );
+
+        filteredAstronauts.forEach((person) => {
+          const listItem = document.createElement("li");
+          listItem.textContent = `${person.name} (${person.craft})`;
+          astronautsList.appendChild(listItem);
+        });
+
+        document.getElementById("people-count").textContent =
+          filteredAstronauts.length;
+      };
+
+      // Apply filters function
+      const applyFilters = () => {
+        const startDate =
+          new Date(document.getElementById("start-date").value).getTime() /
+          1000;
+        const endDate =
+          new Date(document.getElementById("end-date").value).getTime() / 1000;
+        const minSpeed =
+          parseFloat(document.getElementById("min-speed").value) || 0;
+        const maxSpeed =
+          parseFloat(document.getElementById("max-speed").value) || Infinity;
+
+        const filteredData = historicalData.filter((dataPoint) => {
+          const isWithinDateRange =
+            (!startDate || dataPoint.timestamp >= startDate) &&
+            (!endDate || dataPoint.timestamp <= endDate);
+          const isWithinSpeedRange =
+            dataPoint.speed >= minSpeed && dataPoint.speed <= maxSpeed;
+
+          return isWithinDateRange && isWithinSpeedRange;
+        });
+
+        // Update map
+        map.eachLayer((layer) => {
+          if (layer instanceof L.Marker) {
+            map.removeLayer(layer);
+          }
+        });
+
+        filteredData.forEach((dataPoint) => {
+          L.marker([dataPoint.latitude, dataPoint.longitude], { icon: issIcon })
+            .addTo(map)
+            .bindPopup(
+              `Time: ${new Date(
+                dataPoint.timestamp * 1000
+              ).toLocaleString()}<br>Speed: ${dataPoint.speed.toFixed(2)} km/h`
+            );
+        });
+
+        // Update speed chart
+        speedChart.data.labels = filteredData.map((dp) =>
+          new Date(dp.timestamp * 1000).toLocaleTimeString()
+        );
+        speedChart.data.datasets[0].data = filteredData.map((dp) => dp.speed);
+        speedChart.update();
+
+        // Update current position display
+        if (filteredData.length > 0) {
+          const latest = filteredData[filteredData.length - 1];
+          document.getElementById("iss-lat").textContent = latest.latitude;
+          document.getElementById("iss-lon").textContent = latest.longitude;
+          document.getElementById("iss-speed").textContent =
+            latest.speed.toFixed(2);
+        }
+      };
+
+      // Fetch upcoming SpaceX launches
+      const fetchUpcomingLaunches = async () => {
+        try {
+          const response = await axios.get(
+            "https://api.spacexdata.com/v4/launches/upcoming"
+          );
+          const launches = response.data.slice(0, 5); // Display only the next 5 upcoming launches
+          const launchesList = document.getElementById("launches-list");
+          launchesList.innerHTML = "";
+
+          launches.forEach((launch) => {
+            const launchDate = new Date(launch.date_utc).toLocaleString();
+            const listItem = document.createElement("li");
+            listItem.textContent = `${launch.name} - Launch Date: ${launchDate}`;
+            launchesList.appendChild(listItem);
+          });
+        } catch (error) {
+          console.error("Error fetching SpaceX launches:", error);
+        }
+      };
+
+      // Fetch NASA Astronomy Picture of the Day
+      const fetchAPOD = async () => {
+        try {
+          const response = await axios.get(
+            "https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY"
+          );
+          const apodData = response.data;
+
+          document.getElementById("apod-image").src = apodData.url;
+          document.getElementById("apod-title").textContent = apodData.title;
+          document.getElementById("apod-description").textContent =
+            apodData.explanation;
+        } catch (error) {
+          console.error("Error fetching APOD:", error);
+        }
+      };
+
+      // Event Listeners
+      document.getElementById("apply-filters").addEventListener("click", () => {
+        applyFilters();
+        filterAstronauts();
+      });
+
+      document.getElementById("refreshButton").addEventListener("click", () => {
+        fetchISSData();
+        fetchAstronautsData();
+        fetchUpcomingLaunches(); // Fetch SpaceX launches data
+        fetchAPOD(); // Fetch NASA's APOD data
+      });
+      document.getElementById("infoButton").addEventListener("click", () => {
+        document.getElementById("infoAlert").classList.toggle("hidden");
+      });
+
+      // Fetch initial data
+      fetchISSData();
+      fetchAstronautsData();
+      fetchUpcomingLaunches();
+      fetchAPOD();
+      setInterval(fetchISSData, 10000);
+      setInterval(fetchAstronautsData, 600000);
+    </script>
+  </body>
+</html>

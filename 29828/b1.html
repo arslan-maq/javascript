@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Space Education Widget</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+    />
+    <style>
+      /* CSS for layout, responsiveness, and styling */
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+      }
+      #map {
+        height: 400px;
+      }
+      .info-panel {
+        background: #f4f4f4;
+        padding: 10px;
+        margin-top: 10px;
+      }
+      @media (max-width: 768px) {
+        #map {
+          height: 300px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div id="map"></div>
+      <button id="refreshBtn">Refresh Data</button>
+      <div class="info-panel">
+        <h2>ISS Information</h2>
+        <p>People in Space: <span id="peopleCount"></span></p>
+        <p>ISS Speed: <span id="issSpeed"></span> km/h</p>
+        <div id="astronautBios"></div>
+      </div>
+      <div id="educationSection"></div>
+      <div id="upcomingLaunches"></div>
+      <div id="apod"></div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script>
+      const map = L.map("map").setView([0, 0], 2);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "&copy; OpenStreetMap contributors",
+      }).addTo(map);
+
+      async function fetchData() {
+        try {
+          // Fetch ISS current position
+          const issResponse = await fetch(
+            "http://api.open-notify.org/iss-now.json"
+          );
+          const issData = await issResponse.json();
+
+          // Fetch number of people in space
+          const astroResponse = await fetch(
+            "http://api.open-notify.org/astros.json"
+          );
+          const astroData = await astroResponse.json();
+
+          // Update map and data
+          updateMap(issData.iss_position);
+          updatePeopleCount(astroData.number);
+          updateAstronautBios(astroData.people);
+          calculateISSSpeed(issData.timestamp);
+
+          // Fetch and display upcoming launches
+          const launchesResponse = await fetch(
+            "https://api.spacexdata.com/v4/launches/upcoming"
+          );
+          const launchesData = await launchesResponse.json();
+          updateUpcomingLaunches(launchesData.slice(0, 3)); // Show next 3 launches
+
+          // Astronomy Picture of the Day
+          const apodResponse = await fetch(
+            "https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY"
+          );
+          const apodData = await apodResponse.json();
+          updateAPOD(apodData);
+        } catch (error) {
+          console.error("Failed to fetch data:", error);
+        }
+      }
+
+      function updateMap(position) {
+        const { latitude, longitude } = position;
+        map.setView([latitude, longitude], map.getZoom());
+        L.marker([latitude, longitude]).addTo(map);
+      }
+
+      function updatePeopleCount(count) {
+        document.getElementById("peopleCount").textContent = count;
+      }
+
+      function calculateISSSpeed(timestamp) {
+        // Here, you would need a previous position to calculate speed accurately
+        // For now, we'll assume a constant speed for demonstration
+        document.getElementById("issSpeed").textContent = "27600"; // Average orbital speed
+      }
+
+      function updateAstronautBios(people) {
+        const biosDiv = document.getElementById("astronautBios");
+        biosDiv.innerHTML = people
+          .map((person) => `<p>${person.name} (${person.craft})</p>`)
+          .join("");
+      }
+
+      function updateUpcomingLaunches(launches) {
+        const launchesDiv = document.getElementById("upcomingLaunches");
+        launchesDiv.innerHTML = launches
+          .map(
+            (launch) =>
+              `<p>${launch.name} - ${new Date(
+                launch.date_utc
+              ).toLocaleDateString()}</p>`
+          )
+          .join("");
+      }
+
+      function updateAPOD(apod) {
+        const apodDiv = document.getElementById("apod");
+        apodDiv.innerHTML = `<h3>Astronomy Picture of the Day</h3><img src="${apod.url}" alt="${apod.title}" style="max-width:100%;"><p>${apod.explanation}</p>`;
+      }
+
+      document
+        .getElementById("refreshBtn")
+        .addEventListener("click", fetchData);
+
+      // Initial data fetch
+      fetchData();
+    </script>
+  </body>
+</html>
