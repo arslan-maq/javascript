@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CME Explorer</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/chart.js@2.9.4/dist/Chart.min.css"
+    />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 20px;
+        background: #f4f4f4;
+      }
+
+      #app {
+        max-width: 1200px;
+        margin: auto;
+      }
+
+      #cmeList,
+      #cmeDetail {
+        background: white;
+        padding: 20px;
+        margin-top: 20px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      }
+
+      canvas {
+        background: white;
+        margin-top: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <h1>Coronal Mass Ejection Explorer</h1>
+      <!-- Filters and Search -->
+      <div id="filters">
+        <input type="date" id="dateFilter" />
+        <input type="text" id="searchById" placeholder="Search by ID..." />
+        <button onclick="fetchAndDisplayCMEs()">Apply Filters</button>
+      </div>
+
+      <!-- List of CMEs -->
+      <div id="cmeList"></div>
+
+      <!-- Detailed View -->
+      <div id="cmeDetail" style="display: none">
+        <h2>Event Details</h2>
+        <div id="detailContent"></div>
+      </div>
+
+      <!-- Charts -->
+      <canvas id="speedSizeChart" width="400" height="200"></canvas>
+      <!-- Add more canvases or divs for other charts here -->
+
+      <!-- 3D Visualization placeholder -->
+      <div id="3dVisualization"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.4"></script>
+    <script src="https://threejs.org/build/three.min.js"></script>
+    <script>
+      // Placeholder for API key - replace DEMO_KEY with your actual key
+      const apiKey = "DEMO_KEY";
+      const apiUrl = `https://api.nasa.gov/DONKI/CME?api_key=${apiKey}`;
+
+      function fetchAndDisplayCMEs() {
+        // Simple fetch implementation, expand with filters
+        fetch(apiUrl)
+          .then((response) => response.json())
+          .then((data) => {
+            displayCMEs(data);
+            updateCharts(data);
+          })
+          .catch((error) => console.error("Error:", error));
+      }
+
+      function displayCMEs(cmeData) {
+        let cmeListDiv = document.getElementById("cmeList");
+        cmeListDiv.innerHTML = ""; // Clear previous data
+        cmeData.forEach((cme) => {
+          let div = document.createElement("div");
+          div.onclick = () => showCMEDetails(cme);
+          div.innerHTML = `<h3>${cme.activityID}</h3><p>Start Time: ${cme.startTime}</p>`;
+          cmeListDiv.appendChild(div);
+        });
+      }
+
+      function showCMEDetails(cme) {
+        document.getElementById("cmeDetail").style.display = "block";
+        // Populate with detailed data from cme object
+        document.getElementById("detailContent").innerHTML = JSON.stringify(
+          cme,
+          null,
+          2
+        );
+      }
+
+      function updateCharts(data) {
+        // Here you would update all your charts with the fetched data
+        // Example for speedSizeChart:
+        let ctx = document.getElementById("speedSizeChart").getContext("2d");
+        new Chart(ctx, {
+          type: "scatter",
+          data: {
+            datasets: [
+              {
+                label: "CME Speed vs Size",
+                data: data.map((d) => ({ x: d.speed, y: d.size })), // Assuming 'speed' and 'size' are properties
+                backgroundColor: "rgba(75, 192, 192, 0.4)",
+              },
+            ],
+          },
+          options: {},
+        });
+      }
+
+      // Initial fetch
+      fetchAndDisplayCMEs();
+
+      // 3D Visualization would require setting up Three.js which is beyond this basic example
+    </script>
+  </body>
+</html>
