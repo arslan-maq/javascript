@@ -292,6 +292,7 @@
       let cameraUsageChart = null;
       let photoDistributionChart = null;
       let earthDateSolChart = null;
+      let missionTimelineChart = null;
 
       // Event listeners
       filterForm.addEventListener("submit", handleFilterSubmit);
@@ -308,6 +309,7 @@
           allPhotos = data.photos;
           filteredPhotos = allPhotos;
           updateUI();
+          updateStats();
         } catch (error) {
           console.error("Error fetching initial data:", error);
           showError("Failed to fetch initial data. Please try again later.");
@@ -341,7 +343,6 @@
       function updateUI() {
         displayPhotos();
         updateVisualizations();
-        updateStats();
       }
 
       // Display photos in the grid
@@ -677,7 +678,13 @@
         ];
 
         const ctx = timelineContainer.getContext("2d");
-        new Chart(ctx, {
+
+        // Destroy the existing chart if it exists
+        if (missionTimelineChart) {
+          missionTimelineChart.destroy();
+        }
+
+        missionTimelineChart = new Chart(ctx, {
           type: "line",
           data: {
             labels: timelineData.map((d) => d.label),
@@ -742,7 +749,7 @@
       function updateStats() {
         const statsContent = document.getElementById("stats-content");
         const roverInfo = filteredPhotos[0]?.rover;
-
+        console.log("roverInfo", roverInfo, "filteredPhotos", filteredPhotos);
         const stats = {
           "Total Photos": roverInfo.total_photos,
           "Max Sol": roverInfo.max_sol,
