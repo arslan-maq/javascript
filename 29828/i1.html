@@ -655,8 +655,8 @@
       });
 
       document.getElementById("refreshButton").addEventListener("click", () => {
-        fetchISSData();
         fetchAstronautsData();
+        fetchISSData();
         fetchUpcomingLaunches();
         fetchAPOD();
       });
@@ -667,8 +667,8 @@
 
       // Initialize the page
       addStars();
-      fetchISSData();
       fetchAstronautsData();
+      fetchISSData();
       fetchUpcomingLaunches();
       fetchAPOD();
       setInterval(fetchISSData, 10000);
