@@ -1,0 +1,1345 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SpaceX Payload Explorer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css"
+    />
+    <style>
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+      @keyframes twinkle {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+      @keyframes satelliteOrbit {
+        0% {
+          transform: translateX(-50%) translateY(-50%) rotate(0deg);
+        }
+        100% {
+          transform: translateX(-50%) translateY(-50%) rotate(360deg);
+        }
+      }
+      body {
+        background: linear-gradient(to bottom, #000000, #0a192f);
+        color: #e2e8f0;
+        font-family: "Space Mono", monospace;
+      }
+      .space-bg {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: -1;
+      }
+      .star {
+        position: absolute;
+        background-color: #ffffff;
+        border-radius: 50%;
+        animation: twinkle 3s infinite;
+      }
+      .logo-container {
+        position: relative;
+        width: 60px;
+        height: 60px;
+      }
+      .logo {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 50px;
+        height: 50px;
+        background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+        border-radius: 50%;
+        animation: satelliteOrbit 10s linear infinite;
+      }
+      .logo::before {
+        content: "";
+        position: absolute;
+        top: -10px;
+        left: 50%;
+        width: 20px;
+        height: 20px;
+        background: #4ecdc4;
+        transform: translateX(-50%);
+        clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+      }
+      .logo::after {
+        content: "";
+        position: absolute;
+        bottom: -10px;
+        left: 50%;
+        width: 20px;
+        height: 20px;
+        background: #ff6b6b;
+        transform: translateX(-50%) rotate(180deg);
+        clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+      }
+      @keyframes glow {
+        from {
+          text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 15px #ff6b6b,
+            0 0 20px #ff6b6b;
+        }
+        to {
+          text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #4ecdc4,
+            0 0 40px #4ecdc4;
+        }
+      }
+      #chartContainer {
+        height: 500px;
+        width: 600px;
+        position: relative;
+      }
+      #inclinationEccentricityChart,
+      #payloadTypeChart {
+        display: block;
+        width: 100%;
+        max-height: 450px;
+      }
+      .d3-tooltip {
+        position: absolute;
+        text-align: left;
+        width: auto;
+        padding: 10px;
+        font-size: 12px;
+        background: rgba(10, 25, 47, 0.8);
+        color: #e2e8f0;
+        border-radius: 4px;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.3s;
+        z-index: 10;
+      }
+      .modal {
+        background-color: rgba(10, 25, 47, 0.9);
+        backdrop-filter: blur(5px);
+      }
+      .modal-content {
+        background: linear-gradient(135deg, #1a2a4a, #0a192f);
+        border: 1px solid #2a4a8a;
+      }
+      .close-btn {
+        background-color: #ff6b6b;
+        color: #ffffff;
+        transition: background-color 0.3s;
+      }
+      .close-btn:hover {
+        background-color: #ff4757;
+      }
+      table {
+        border-collapse: separate;
+        border-spacing: 0;
+        width: 100%;
+        border: 1px solid #2a4a8a;
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      th,
+      td {
+        border: 1px solid #2a4a8a;
+        padding: 12px;
+        text-align: left;
+      }
+      th {
+        background-color: #1a2a4a;
+        color: #4ecdc4;
+      }
+      tr:nth-child(even) {
+        background-color: #0f2a4a;
+      }
+      tr:hover {
+        background-color: #2a4a8a;
+      }
+    </style>
+  </head>
+  <body class="transition-colors duration-200 overflow-x-hidden">
+    <div class="space-bg" id="starField"></div>
+    <header
+      class="bg-opacity-50 bg-gray-900 text-white p-4 flex justify-between items-center"
+    >
+      <div class="flex items-center">
+        <div class="logo-container mr-4">
+          <div class="logo"></div>
+        </div>
+        <h1
+          class="text-2xl font-bold"
+          style="animation: glow 2s ease-in-out infinite alternate"
+        >
+          SpaceX Payload Explorer
+        </h1>
+      </div>
+    </header>
+
+    <main class="container mx-auto p-4">
+      <div
+        id="loader"
+        class="fixed top-0 left-0 w-full h-full flex items-center justify-center bg-black bg-opacity-75 z-50"
+      >
+        <div
+          class="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"
+        ></div>
+      </div>
+
+      <div class="mb-4">
+        <input
+          type="text"
+          id="searchInput"
+          placeholder="Search by payload ID or customer"
+          class="w-full p-2 border border-gray-700 rounded bg-gray-800 text-white placeholder-gray-400"
+        />
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+        <select
+          id="orbitFilter"
+          class="p-2 border border-gray-700 rounded bg-gray-800 text-white"
+        >
+          <option value="">All Orbits</option>
+        </select>
+        <select
+          id="nationalityFilter"
+          class="p-2 border border-gray-700 rounded bg-gray-800 text-white"
+        >
+          <option value="">All Nationalities</option>
+        </select>
+        <select
+          id="manufacturerFilter"
+          class="p-2 border border-gray-700 rounded bg-gray-800 text-white"
+        >
+          <option value="">All Manufacturers</option>
+        </select>
+        <select
+          id="payloadTypeFilter"
+          class="p-2 border border-gray-700 rounded bg-gray-800 text-white"
+        >
+          <option value="">All Payload Types</option>
+        </select>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+        <div class="bg-gray-800 bg-opacity-50 p-4 rounded shadow">
+          <h2 class="text-xl font-bold mb-2 text-blue-300">
+            Payload Mass Comparison
+          </h2>
+          <canvas id="payloadMassChart"></canvas>
+        </div>
+        <div class="bg-gray-800 bg-opacity-50 p-4 rounded shadow">
+          <h2 class="text-xl font-bold mb-2 text-blue-300">
+            Orbit Altitude Scatter Plot
+          </h2>
+          <div id="orbitAltitudeScatter"></div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+        <div
+          class="bg-gray-800 bg-opacity-50 p-4 rounded shadow"
+          style="height: 500px"
+        >
+          <h2 class="text-xl font-bold mb-2 text-blue-300">
+            Inclination & Eccentricity Chart
+          </h2>
+          <canvas id="inclinationEccentricityChart"></canvas>
+        </div>
+        <div class="bg-gray-800 bg-opacity-50 p-4 rounded shadow">
+          <h2 class="text-xl font-bold mb-2 text-blue-300">
+            Launch Locations Map
+          </h2>
+          <div id="launchMap" style="height: 400px"></div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+        <div class="bg-gray-800 bg-opacity-50 p-4 rounded shadow">
+          <h2 class="text-xl font-bold mb-2 text-blue-300">
+            Payload Type Distribution
+          </h2>
+          <canvas id="payloadTypeChart"></canvas>
+        </div>
+        <div class="bg-gray-800 bg-opacity-50 p-4 rounded shadow">
+          <h2 class="text-xl font-bold mb-2 text-blue-300">
+            Timeline of Payload Launches
+          </h2>
+          <div id="payloadTimeline"></div>
+        </div>
+      </div>
+
+      <div class="bg-gray-800 bg-opacity-50 p-4 rounded shadow mb-4">
+        <h2 class="text-xl font-bold mb-2 text-blue-300">Orbit Visualizer</h2>
+        <div id="orbitVisualizer"></div>
+      </div>
+
+      <div class="bg-gray-800 bg-opacity-50 p-4 rounded shadow mb-4">
+        <h2 class="text-xl font-bold mb-2 text-blue-300">Payload Data Table</h2>
+        <div id="dataTable" class="overflow-x-auto"></div>
+      </div>
+    </main>
+
+    <footer class="bg-gray-900 bg-opacity-50 text-white p-4 mt-8">
+      <p class="text-center">
+        &copy; 2024 SpaceX Payload Explorer. All rights reserved.
+      </p>
+    </footer>
+
+    <script>
+      // Add this function to create the star field animation
+      function createStarField() {
+        const starField = document.getElementById("starField");
+        const numberOfStars = 200;
+
+        for (let i = 0; i < numberOfStars; i++) {
+          const star = document.createElement("div");
+          star.className = "star";
+          star.style.width = `${Math.random() * 3}px`;
+          star.style.height = star.style.width;
+          star.style.left = `${Math.random() * 100}%`;
+          star.style.top = `${Math.random() * 100}%`;
+          star.style.animationDelay = `${Math.random() * 3}s`;
+          starField.appendChild(star);
+        }
+      }
+
+      // Call createStarField after the DOM has loaded
+      document.addEventListener("DOMContentLoaded", createStarField);
+
+      let payloads = [];
+      const loader = document.getElementById("loader");
+
+      async function fetchPayloads() {
+        try {
+          const response = await fetch(
+            "https://api.spacexdata.com/v3/payloads"
+          );
+          payloads = await response.json();
+          initializeApp();
+        } catch (error) {
+          console.error("Error fetching payloads:", error);
+          alert("Failed to fetch payload data. Please try again later.");
+        } finally {
+          loader.style.display = "none";
+        }
+      }
+
+      function initializeApp() {
+        populateFilters();
+        createPayloadMassChart();
+        createOrbitAltitudeScatter();
+        createInclinationEccentricityChart();
+        createOrbitVisualizer();
+        createPayloadTypeChart();
+        createPayloadTimeline();
+        createLaunchMap();
+        createDataTable(payloads);
+
+        // Add event listeners
+        document
+          .getElementById("searchInput")
+          .addEventListener("input", filterPayloads);
+        document
+          .getElementById("orbitFilter")
+          .addEventListener("change", filterPayloads);
+        document
+          .getElementById("nationalityFilter")
+          .addEventListener("change", filterPayloads);
+        document
+          .getElementById("manufacturerFilter")
+          .addEventListener("change", filterPayloads);
+        document
+          .getElementById("payloadTypeFilter")
+          .addEventListener("change", filterPayloads);
+
+        // Make visualizations responsive
+        window.addEventListener("resize", function () {
+          createOrbitAltitudeScatter();
+          createPayloadTimeline();
+          createOrbitVisualizer();
+        });
+      }
+
+      function populateFilters() {
+        const orbits = new Set();
+        const nationalities = new Set();
+        const manufacturers = new Set();
+        const payloadTypes = new Set();
+
+        payloads.forEach((payload) => {
+          orbits.add(payload.orbit);
+          nationalities.add(payload.nationality);
+          manufacturers.add(payload.manufacturer);
+          payloadTypes.add(payload.payload_type);
+        });
+
+        populateSelect("orbitFilter", orbits);
+        populateSelect("nationalityFilter", nationalities);
+        populateSelect("manufacturerFilter", manufacturers);
+        populateSelect("payloadTypeFilter", payloadTypes);
+      }
+
+      function populateSelect(id, options) {
+        const select = document.getElementById(id);
+        options.forEach((option) => {
+          const optionElement = document.createElement("option");
+          optionElement.value = option;
+          optionElement.textContent = option;
+          select.appendChild(optionElement);
+        });
+      }
+
+      function filterPayloads() {
+        const searchTerm = document
+          .getElementById("searchInput")
+          .value.toLowerCase();
+        const orbitFilter = document.getElementById("orbitFilter").value;
+        const nationalityFilter =
+          document.getElementById("nationalityFilter").value;
+        const manufacturerFilter =
+          document.getElementById("manufacturerFilter").value;
+        const payloadTypeFilter =
+          document.getElementById("payloadTypeFilter").value;
+
+        const filteredPayloads = payloads.filter((payload) => {
+          return (
+            (payload.payload_id.toLowerCase().includes(searchTerm) ||
+              payload.customers.some((customer) =>
+                customer.toLowerCase().includes(searchTerm)
+              )) &&
+            (orbitFilter === "" || payload.orbit === orbitFilter) &&
+            (nationalityFilter === "" ||
+              payload.nationality === nationalityFilter) &&
+            (manufacturerFilter === "" ||
+              payload.manufacturer === manufacturerFilter) &&
+            (payloadTypeFilter === "" ||
+              payload.payload_type === payloadTypeFilter)
+          );
+        });
+
+        updateCharts(filteredPayloads);
+        createDataTable(filteredPayloads);
+      }
+
+      function renderPayloadList(filteredPayloads = payloads) {
+        const payloadList = document.getElementById("payloadList");
+        payloadList.innerHTML = "";
+
+        filteredPayloads.forEach((payload) => {
+          const payloadCard = document.createElement("div");
+          payloadCard.className = "bg-white p-4 rounded shadow";
+          payloadCard.innerHTML = `
+            <h3 class="text-lg font-bold mb-2">${payload.payload_id}</h3>
+            <p><strong>Type:</strong> ${payload.payload_type}</p>
+            <p><strong>Customers:</strong> ${payload.customers.join(", ")}</p>
+            <p><strong>Nationality:</strong> ${payload.nationality}</p>
+            <p><strong>Manufacturer:</strong> ${payload.manufacturer}</p>
+            <p><strong>Orbit:</strong> ${payload.orbit}</p>
+            <p><strong>Mass:</strong> ${payload.payload_mass_kg} kg / ${
+            payload.payload_mass_lbs
+          } lbs</p>
+            <button class="mt-2 bg-blue-500 text-white px-4 py-2 rounded" onclick="showDetailedView('${
+              payload.payload_id
+            }')">View Details</button>
+        `;
+          payloadList.appendChild(payloadCard);
+        });
+      }
+
+      function showPayloadDetails(payload) {
+        const modal = document.createElement("div");
+        modal.className =
+          "fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 p-4 modal";
+        modal.innerHTML = `
+          <div class="bg-gray-800 p-6 rounded-lg max-w-2xl w-full max-h-full overflow-y-auto shadow-lg transform transition-all text-gray-200 modal-content">
+            <h2 class="text-2xl font-bold mb-4 text-center border-b border-gray-700 pb-2">${
+              payload.payload_id
+            } Details</h2>
+            <div class="mb-4 space-y-4">
+              <div class="flex flex-wrap gap-4">
+                <div class="bg-gray-700 p-3 rounded-md flex-grow shadow-sm">
+                  <p class="text-sm font-semibold text-gray-400">Type:</p>
+                  <p>${payload.payload_type}</p>
+                </div>
+                <div class="bg-gray-700 p-3 rounded-md flex-grow shadow-sm">
+                  <p class="text-sm font-semibold text-gray-400">Customers:</p>
+                  <p>${payload.customers.join(", ")}</p>
+                </div>
+                <div class="bg-gray-700 p-3 rounded-md flex-grow shadow-sm">
+                  <p class="text-sm font-semibold text-gray-400">Nationality:</p>
+                  <p>${payload.nationality}</p>
+                </div>
+              </div>
+              <div class="flex flex-wrap gap-4">
+                <div class="bg-gray-700 p-3 rounded-md flex-grow shadow-sm">
+                  <p class="text-sm font-semibold text-gray-400">Manufacturer:</p>
+                  <p>${payload.manufacturer || "N/A"}</p>
+                </div>
+                <div class="bg-gray-700 p-3 rounded-md flex-grow shadow-sm">
+                  <p class="text-sm font-semibold text-gray-400">Orbit:</p>
+                  <p>${payload.orbit}</p>
+                </div>
+                <div class="bg-gray-700 p-3 rounded-md flex-grow shadow-sm">
+                  <p class="text-sm font-semibold text-gray-400">Mass:</p>
+                  <p>${
+                    payload.payload_mass_kg
+                      ? `${payload.payload_mass_kg} kg`
+                      : "N/A"
+                  }</p>
+                </div>
+              </div>
+            </div>
+            <h3 class="text-xl font-bold mt-4 mb-2 border-b border-gray-700 pb-1">Orbit Parameters</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+              ${Object.entries(payload.orbit_params)
+                .map(
+                  ([key, value]) => `
+                  <div class="bg-gray-700 p-3 rounded-md shadow-sm">
+                    <p class="text-sm font-semibold text-gray-400">${key
+                      .replace(/_/g, " ")
+                      .toUpperCase()}:</p>
+                    <p>${value !== null ? value : "N/A"}</p>
+                  </div>
+                `
+                )
+                .join("")}
+            </div>
+            <div class="flex justify-center">
+              <button class="mt-4 px-4 py-2 rounded shadow-md hover:bg-opacity-80 transition close-btn" onclick="this.closest('.modal').remove()">Close</button>
+            </div>
+          </div>
+        `;
+
+        document.body.appendChild(modal);
+      }
+
+      function createPayloadMassChart() {
+        const ctx = document
+          .getElementById("payloadMassChart")
+          .getContext("2d");
+        new Chart(ctx, {
+          type: "bar",
+          data: {
+            labels: payloads.map((p) => p.payload_id),
+            datasets: [
+              {
+                label: "Payload Mass (kg)",
+                data: payloads.map((p) => p.payload_mass_kg),
+                backgroundColor: "rgba(78, 205, 196, 0.5)",
+                borderColor: "rgba(78, 205, 196, 1)",
+                borderWidth: 1,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: { color: "#e2e8f0" },
+                grid: { color: "rgba(255, 255, 255, 0.1)" },
+              },
+              x: {
+                ticks: { color: "#e2e8f0" },
+                grid: { color: "rgba(255, 255, 255, 0.1)" },
+              },
+            },
+            plugins: {
+              legend: {
+                labels: { color: "#e2e8f0" },
+              },
+            },
+          },
+        });
+      }
+
+      function createOrbitAltitudeScatter() {
+        const container = document.getElementById("orbitAltitudeScatter");
+        const width = container.clientWidth;
+        const height = 400;
+        const margin = { top: 20, right: 20, bottom: 50, left: 60 };
+
+        const data = payloads.map((p) => ({
+          x: p.orbit_params.periapsis_km,
+          y: p.orbit_params.apoapsis_km,
+          id: p.payload_id,
+        }));
+
+        const svg = d3
+          .select("#orbitAltitudeScatter")
+          .html("") // Clear previous content
+          .append("svg")
+          .attr("viewBox", `0 0 ${width} ${height}`)
+          .attr("preserveAspectRatio", "xMidYMid meet")
+          .append("g")
+          .attr("transform", `translate(${margin.left},${margin.top})`);
+
+        const x = d3
+          .scaleLinear()
+          .domain([0, d3.max(data, (d) => d.x)])
+          .range([0, width - margin.left - margin.right]);
+
+        const y = d3
+          .scaleLinear()
+          .domain([0, d3.max(data, (d) => d.y)])
+          .range([height - margin.top - margin.bottom, 0]);
+
+        svg
+          .append("g")
+          .attr(
+            "transform",
+            `translate(0,${height - margin.top - margin.bottom})`
+          )
+          .call(d3.axisBottom(x));
+
+        svg.append("g").call(d3.axisLeft(y));
+
+        // Create Tooltip
+        const tooltip = d3
+          .select("body")
+          .append("div")
+          .attr("class", "d3-tooltip");
+
+        svg
+          .selectAll("circle")
+          .data(data)
+          .enter()
+          .append("circle")
+          .attr("cx", (d) => x(d.x))
+          .attr("cy", (d) => y(d.y))
+          .attr("r", 5)
+          .attr("fill", "rgba(78, 205, 196, 0.7)")
+          .on("mouseover", (event, d) => {
+            tooltip.style("opacity", 1).html(
+              `<strong>Payload ID:</strong> ${d.id}<br/>
+           <strong>Periapsis (km):</strong> ${d.x}<br/>
+           <strong>Apoapsis (km):</strong> ${d.y}`
+            );
+          })
+          .on("mousemove", (event) => {
+            tooltip
+              .style("left", event.pageX + 10 + "px")
+              .style("top", event.pageY + 10 + "px");
+          })
+          .on("mouseout", () => {
+            tooltip.style("opacity", 0);
+          });
+
+        svg.selectAll(".tick line").attr("stroke", "rgba(255, 255, 255, 0.2)");
+        svg.selectAll(".tick text").attr("fill", "#e2e8f0");
+        svg.selectAll(".domain").attr("stroke", "#e2e8f0");
+
+        svg
+          .append("text")
+          .attr(
+            "transform",
+            `translate(${(width - margin.left - margin.right) / 2}, ${
+              height - margin.top
+            })`
+          )
+          .style("text-anchor", "middle")
+          .text("Periapsis (km)");
+
+        svg
+          .append("text")
+          .attr("transform", "rotate(-90)")
+          .attr("y", 0 - margin.left)
+          .attr("x", 0 - (height - margin.top - margin.bottom) / 2)
+          .attr("dy", "1em")
+          .style("text-anchor", "middle")
+          .text("Apoapsis (km)");
+      }
+
+      function createInclinationEccentricityChart() {
+        const container = document.getElementById(
+          "inclinationEccentricityChart"
+        );
+        const ctx = container.getContext("2d");
+
+        // Check if the chart instance exists and is a valid Chart object
+        if (window.inclinationEccentricityChart instanceof Chart) {
+          window.inclinationEccentricityChart.destroy();
+        }
+
+        const chartData = payloads
+          .filter(
+            (p) => p.orbit_params.inclination_deg && p.orbit_params.eccentricity
+          )
+          .map((p) => ({
+            x: p.orbit_params.inclination_deg,
+            y: p.orbit_params.eccentricity,
+            r: p.payload_mass_kg ? Math.sqrt(p.payload_mass_kg) / 5 : 5,
+            payload_id: p.payload_id,
+          }));
+
+        // Create a new chart instance and store it in window.inclinationEccentricityChart
+        window.inclinationEccentricityChart = new Chart(ctx, {
+          type: "bubble",
+          data: {
+            datasets: [
+              {
+                label: "Inclination & Eccentricity",
+                data: chartData,
+                backgroundColor: "rgba(255, 99, 132, 0.5)",
+                borderColor: "rgba(255, 99, 132, 1)",
+                borderWidth: 1,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false, // Allow the chart to resize based on the container
+            plugins: {
+              legend: {
+                position: "top",
+                labels: {
+                  color: "white", // Set legend text color to white
+                },
+              },
+              tooltip: {
+                callbacks: {
+                  label: function (context) {
+                    return `${context.raw.payload_id}: (${context.raw.x.toFixed(
+                      2
+                    )}°, ${context.raw.y.toFixed(4)})`;
+                  },
+                },
+              },
+            },
+            scales: {
+              x: {
+                title: {
+                  display: true,
+                  text: "Inclination (degrees)",
+                  color: "white", // X-axis title color
+                },
+                ticks: {
+                  color: "white", // X-axis labels color
+                },
+                grid: {
+                  color: "rgba(255, 255, 255, 0.2)", // X-axis gridline color (light gray)
+                },
+                min: 0, // Adjust if you want a fixed range
+                max: 180, // Assuming inclination degrees range from 0 to 180
+              },
+              y: {
+                title: {
+                  display: true,
+                  text: "Eccentricity",
+                  color: "white", // Y-axis title color
+                },
+                ticks: {
+                  color: "white", // Y-axis labels color
+                },
+                grid: {
+                  color: "rgba(255, 255, 255, 0.2)", // Y-axis gridline color (light gray)
+                },
+                min: 0, // Adjust to make sure the y-axis doesn't overflow
+                max: 1, // Assuming eccentricity ranges from 0 to 1
+              },
+            },
+          },
+        });
+
+        // Resize the canvas element to always match the container size
+        function resizeChart() {
+          container.width = container.parentElement.clientWidth;
+          container.height = container.parentElement.clientHeight;
+          window.inclinationEccentricityChart.resize();
+        }
+
+        // Call resizeChart when the window is resized or the container size changes
+        window.addEventListener("resize", resizeChart);
+        resizeChart(); // Call it once initially to make sure the chart is resized
+      }
+
+      function createOrbitVisualizer() {
+        const container = document.getElementById("orbitVisualizer");
+        const width = container.clientWidth;
+        const height = 400;
+
+        // Create scene, camera, and renderer
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(
+          75,
+          width / height,
+          0.1,
+          1000
+        );
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(width, height);
+        container.innerHTML = "";
+        container.appendChild(renderer.domElement);
+
+        // Space Background
+        const spaceTexture = new THREE.TextureLoader().load(
+          "https://threejs.org/examples/textures/cube/MilkyWay/dark-s_px.jpg"
+        );
+        scene.background = spaceTexture;
+
+        // Create Earth with atmosphere
+        const earthGeometry = new THREE.SphereGeometry(1, 32, 32);
+        const earthMaterial = new THREE.MeshPhongMaterial({
+          map: new THREE.TextureLoader().load(
+            "https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg"
+          ),
+          bumpMap: new THREE.TextureLoader().load(
+            "https://threejs.org/examples/textures/planets/earth_normal_2048.jpg"
+          ),
+          bumpScale: 0.05,
+          specularMap: new THREE.TextureLoader().load(
+            "https://threejs.org/examples/textures/planets/earth_specular_2048.jpg"
+          ),
+          specular: new THREE.Color("#2196f3"),
+          shininess: 5,
+        });
+        const earth = new THREE.Mesh(earthGeometry, earthMaterial);
+        scene.add(earth);
+
+        // Earth atmosphere
+        const atmosphereGeometry = new THREE.SphereGeometry(1.05, 32, 32);
+        const atmosphereMaterial = new THREE.MeshBasicMaterial({
+          color: 0x4ecdc4,
+          transparent: true,
+          opacity: 0.2,
+        });
+        const atmosphere = new THREE.Mesh(
+          atmosphereGeometry,
+          atmosphereMaterial
+        );
+        scene.add(atmosphere);
+
+        // Add stars in the background
+        const starGeometry = new THREE.BufferGeometry();
+        const starMaterial = new THREE.PointsMaterial({ color: 0xffffff });
+
+        const starVertices = [];
+        for (let i = 0; i < 5000; i++) {
+          const x = (Math.random() - 0.5) * 2000;
+          const y = (Math.random() - 0.5) * 2000;
+          const z = (Math.random() - 0.5) * 2000;
+          starVertices.push(x, y, z);
+        }
+        starGeometry.setAttribute(
+          "position",
+          new THREE.Float32BufferAttribute(starVertices, 3)
+        );
+
+        const stars = new THREE.Points(starGeometry, starMaterial);
+        scene.add(stars);
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0x404040, 1.5); // Increased intensity for a brighter scene
+        scene.add(ambientLight);
+
+        const pointLight = new THREE.PointLight(0xffffff, 1.5, 100);
+        pointLight.position.set(10, 10, 10);
+        scene.add(pointLight);
+
+        // Store orbit data for animation
+        const orbitData = [];
+
+        payloads.forEach((payload, index) => {
+          if (
+            payload.orbit_params.semi_major_axis_km &&
+            payload.orbit_params.eccentricity
+          ) {
+            // Use a visually appealing orbit color
+            const orbitMaterial = new THREE.LineBasicMaterial({
+              color: `hsl(${(index * 40) % 360}, 100%, 70%)`, // HSL color for better variation
+              linewidth: 2,
+            });
+
+            const a = payload.orbit_params.semi_major_axis_km / 6371; // Convert to Earth radii
+            const e = payload.orbit_params.eccentricity;
+            const b = a * Math.sqrt(1 - e * e);
+
+            const orbitPoints = [];
+            for (let i = 0; i <= 100; i++) {
+              const angle = (i / 100) * Math.PI * 2;
+              const r = (a * (1 - e * e)) / (1 + e * Math.cos(angle));
+              const x = r * Math.cos(angle);
+              const y = r * Math.sin(angle);
+              orbitPoints.push(new THREE.Vector3(x, y, 0));
+            }
+
+            const orbitGeometry = new THREE.BufferGeometry().setFromPoints(
+              orbitPoints
+            );
+            const orbit = new THREE.Line(orbitGeometry, orbitMaterial);
+            orbit.rotation.x = Math.random() * Math.PI;
+            orbit.rotation.y = Math.random() * Math.PI;
+            scene.add(orbit);
+
+            // Track each orbit's data
+            orbitData.push({
+              orbit,
+              semiMajorAxis: a,
+              eccentricity: e,
+              inclination: orbit.rotation.x,
+              rotationY: orbit.rotation.y,
+              angle: 0, // Initial position angle
+            });
+          }
+        });
+
+        // Initialize OrbitControls
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        camera.position.set(0, 0, 5); // Set initial camera position
+        controls.enableDamping = true; // an animation loop is required when either damping or auto-rotation are enabled
+        controls.dampingFactor = 0.25;
+        controls.enableZoom = true; // Allow zooming in and out
+
+        // Animate function
+        function animate() {
+          requestAnimationFrame(animate);
+
+          // Rotate the Earth
+          earth.rotation.y += 0.001;
+
+          // Update controls
+          controls.update();
+
+          // Update each satellite's position along its orbit
+          orbitData.forEach((orbitInfo) => {
+            orbitInfo.angle += 0.01; // Adjust this value to control speed
+
+            const a = orbitInfo.semiMajorAxis;
+            const e = orbitInfo.eccentricity;
+            const r = (a * (1 - e * e)) / (1 + e * Math.cos(orbitInfo.angle));
+            const x = r * Math.cos(orbitInfo.angle);
+            const y = r * Math.sin(orbitInfo.angle);
+
+            // Adjust the orbit's rotation based on its inclination
+            const satellitePosition = new THREE.Vector3(x, y, 0)
+              .applyAxisAngle(new THREE.Vector3(1, 0, 0), orbitInfo.inclination)
+              .applyAxisAngle(new THREE.Vector3(0, 1, 0), orbitInfo.rotationY);
+
+            // Optionally, you can add a sphere to represent the satellite
+            if (!orbitInfo.satellite) {
+              const satelliteGeometry = new THREE.SphereGeometry(0.05, 16, 16);
+              const satelliteMaterial = new THREE.MeshBasicMaterial({
+                color: orbitInfo.orbit.material.color,
+              });
+              const satellite = new THREE.Mesh(
+                satelliteGeometry,
+                satelliteMaterial
+              );
+              scene.add(satellite);
+              orbitInfo.satellite = satellite;
+            }
+
+            orbitInfo.satellite.position.set(
+              satellitePosition.x,
+              satellitePosition.y,
+              satellitePosition.z
+            );
+          });
+
+          renderer.render(scene, camera);
+        }
+
+        animate();
+
+        // Resize event
+        window.addEventListener("resize", () => {
+          const newWidth = container.clientWidth;
+          camera.aspect = newWidth / height;
+          camera.updateProjectionMatrix();
+          renderer.setSize(newWidth, height);
+        });
+      }
+
+      function createPayloadTypeChart() {
+        const payloadTypes = {};
+        payloads.forEach((payload) => {
+          payloadTypes[payload.payload_type] =
+            (payloadTypes[payload.payload_type] || 0) + 1;
+        });
+
+        const ctx = document
+          .getElementById("payloadTypeChart")
+          .getContext("2d");
+        new Chart(ctx, {
+          type: "pie",
+          data: {
+            labels: Object.keys(payloadTypes),
+            datasets: [
+              {
+                data: Object.values(payloadTypes),
+                backgroundColor: [
+                  "rgba(255, 99, 132, 1)",
+                  "rgba(54, 162, 235, 1)",
+                  "rgba(255, 206, 86, 1)",
+                  "rgba(75, 192, 192, 1)",
+                  "rgba(153, 102, 255, 1)",
+                ],
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: {
+                position: "top",
+                labels: { color: "white" },
+              },
+              title: {
+                display: true,
+                text: "Payload Type Distribution",
+                color: "white",
+              },
+              color: "white",
+            },
+          },
+        });
+      }
+
+      function createPayloadTimeline() {
+        const container = document.getElementById("payloadTimeline");
+        const width = container.clientWidth;
+        const height = 400;
+        const margin = { top: 20, right: 20, bottom: 50, left: 100 };
+
+        const timelineData = payloads
+          .filter((p) => p.orbit_params.epoch)
+          .map((p) => ({
+            id: p.payload_id,
+            date: new Date(p.orbit_params.epoch),
+          }))
+          .sort((a, b) => a.date - b.date);
+
+        if (timelineData.length === 0) {
+          container.innerHTML =
+            '<p class="text-center">No timeline data available</p>';
+          return;
+        }
+
+        const svg = d3
+          .select("#payloadTimeline")
+          .html("")
+          .append("svg")
+          .attr("viewBox", `0 0 ${width} ${height}`)
+          .attr("preserveAspectRatio", "xMidYMid meet")
+          .append("g")
+          .attr("transform", `translate(${margin.left},${margin.top})`);
+
+        const x = d3
+          .scaleTime()
+          .domain(d3.extent(timelineData, (d) => d.date))
+          .range([0, width - margin.left - margin.right]);
+
+        const y = d3
+          .scaleBand()
+          .domain(timelineData.map((d) => d.id))
+          .range([0, height - margin.top - margin.bottom])
+          .padding(0.5); // Increased padding for more space between items
+
+        svg
+          .append("g")
+          .attr(
+            "transform",
+            `translate(0,${height - margin.top - margin.bottom})`
+          )
+          .call(d3.axisBottom(x));
+
+        svg
+          .append("g")
+          .call(d3.axisLeft(y).tickSize(0))
+          .selectAll(".tick text")
+          .style("font-size", "4px") // Reduced font size
+          .call(wrap, margin.left - 10)
+          .attr("transform", "rotate(-45)") // Rotate the text to avoid overlap
+          .style("text-anchor", "end"); // Align text to end
+
+        // Create Tooltip
+        const tooltip = d3
+          .select("body")
+          .append("div")
+          .attr("class", "d3-tooltip");
+
+        svg
+          .selectAll("rect")
+          .data(timelineData)
+          .enter()
+          .append("rect")
+          .attr("x", (d) => x(d.date))
+          .attr("y", (d) => y(d.id))
+          .attr("width", 5)
+          .attr("height", y.bandwidth())
+          .attr("fill", "steelblue")
+          .on("mouseover", (event, d) => {
+            tooltip.style("opacity", 1).html(
+              `<strong>Payload ID:</strong> ${d.id}<br/>
+         <strong>Launch Date:</strong> ${d.date.toLocaleDateString()}`
+            );
+          })
+          .on("mousemove", (event) => {
+            tooltip
+              .style("left", event.pageX + 10 + "px")
+              .style("top", event.pageY + 10 + "px");
+          })
+          .on("mouseout", () => {
+            tooltip.style("opacity", 0);
+          });
+
+        // svg
+        //   .append("text")
+        //   .attr(
+        //     "transform",
+        //     `translate(${(width - margin.left - margin.right) / 2}, ${
+        //       height - margin.top
+        //     })`
+        //   )
+        //   .style("text-anchor", "middle")
+        //   .text("Launch Date");
+
+        function wrap(text, width) {
+          text.each(function () {
+            let text = d3.select(this),
+              words = text.text().split(/\s+/).reverse(),
+              word,
+              line = [],
+              lineNumber = 0,
+              lineHeight = 1.1,
+              y = text.attr("y"),
+              dy = parseFloat(text.attr("dy")),
+              tspan = text
+                .text(null)
+                .append("tspan")
+                .attr("x", 0)
+                .attr("y", y)
+                .attr("dy", dy + "em");
+            while ((word = words.pop())) {
+              line.push(word);
+              tspan.text(line.join(" "));
+              if (tspan.node().getComputedTextLength() > width) {
+                line.pop();
+                tspan.text(line.join(" "));
+                line = [word];
+                tspan = text
+                  .append("tspan")
+                  .attr("x", 0)
+                  .attr("y", y)
+                  .attr("dy", ++lineNumber * lineHeight + dy + "em")
+                  .text(word);
+              }
+            }
+          });
+        }
+      }
+
+      function createLaunchMap() {
+        const map = L.map("launchMap").setView([0, 0], 2);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution: "© OpenStreetMap contributors",
+        }).addTo(map);
+
+        const launchSites = {
+          ccafs_slc_40: [28.5618, -80.577],
+          ksc_lc_39a: [28.608, -80.6043],
+          vafb_slc_4e: [34.6332, -120.6106],
+        };
+
+        Object.entries(launchSites).forEach(([site, coords]) => {
+          L.marker(coords)
+            .addTo(map)
+            .bindPopup(site.replace(/_/g, " ").toUpperCase());
+        });
+      }
+
+      function getRandomColor() {
+        return `hsl(${Math.random() * 360}, 100%, 50%)`;
+      }
+
+      function createDataTable(data) {
+        // Clear the existing content of the container
+        const container = document.getElementById("dataTable");
+        container.innerHTML = "";
+
+        // Create a new table element
+        const table = document.createElement("table");
+        table.className = "min-w-full bg-gray-800 border border-gray-700";
+
+        // Create the table header
+        const thead = document.createElement("thead");
+        thead.innerHTML = `
+    <tr class="bg-gray-900">
+      <th class="py-2 px-4 border-b border-gray-700 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Payload ID</th>
+      <th class="py-2 px-4 border-b border-gray-700 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Type</th>
+      <th class="py-2 px-4 border-b border-gray-700 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Customers</th>
+      <th class="py-2 px-4 border-b border-gray-700 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Nationality</th>
+      <th class="py-2 px-4 border-b border-gray-700 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Manufacturer</th>
+      <th class="py-2 px-4 border-b border-gray-700 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Orbit</th>
+      <th class="py-2 px-4 border-b border-gray-700 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Mass (kg)</th>
+    </tr>
+  `;
+        table.appendChild(thead);
+
+        // Create the table body
+        const tbody = document.createElement("tbody");
+        data.forEach((payload) => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+      <td class="py-2 px-4 border-b border-gray-700">${payload.payload_id}</td>
+      <td class="py-2 px-4 border-b border-gray-700">${
+        payload.payload_type
+      }</td>
+      <td class="py-2 px-4 border-b border-gray-700">${payload.customers.join(
+        ", "
+      )}</td>
+      <td class="py-2 px-4 border-b border-gray-700">${payload.nationality}</td>
+      <td class="py-2 px-4 border-b border-gray-700">${
+        payload.manufacturer || "N/A"
+      }</td>
+      <td class="py-2 px-4 border-b border-gray-700">${payload.orbit}</td>
+      <td class="py-2 px-4 border-b border-gray-700">${
+        payload.payload_mass_kg || "N/A"
+      }</td>
+    `;
+          tr.addEventListener("click", () => showPayloadDetails(payload));
+          tbody.appendChild(tr);
+        });
+        table.appendChild(tbody);
+
+        // Add the table to the container
+        container.appendChild(table);
+      }
+
+      function showPayloadDetails(payload) {
+        // Create the modal container
+        const modal = document.createElement("div");
+        modal.className =
+          "fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 p-4";
+        modal.innerHTML = `
+    <div class="bg-gray-800 p-6 rounded-lg max-w-2xl w-full max-h-full overflow-y-auto shadow-lg transform transition-all text-gray-200">
+      <h2 class="text-2xl font-bold mb-4 text-center border-b border-gray-700 pb-2">${
+        payload.payload_id
+      } Details</h2>
+      <div class="mb-4 space-y-4">
+        <div class="flex flex-wrap gap-4">
+          <div class="bg-gray-700 p-3 rounded-md flex-grow shadow-sm">
+            <p class="text-sm font-semibold text-gray-400">Type:</p>
+            <p>${payload.payload_type}</p>
+          </div>
+          <div class="bg-gray-700 p-3 rounded-md flex-grow shadow-sm">
+            <p class="text-sm font-semibold text-gray-400">Customers:</p>
+            <p>${payload.customers.join(", ")}</p>
+          </div>
+          <div class="bg-gray-700 p-3 rounded-md flex-grow shadow-sm">
+            <p class="text-sm font-semibold text-gray-400">Nationality:</p>
+            <p>${payload.nationality}</p>
+          </div>
+        </div>
+        <div class="flex flex-wrap gap-4">
+          <div class="bg-gray-700 p-3 rounded-md flex-grow shadow-sm">
+            <p class="text-sm font-semibold text-gray-400">Manufacturer:</p>
+            <p>${payload.manufacturer || "N/A"}</p>
+          </div>
+          <div class="bg-gray-700 p-3 rounded-md flex-grow shadow-sm">
+            <p class="text-sm font-semibold text-gray-400">Orbit:</p>
+            <p>${payload.orbit}</p>
+          </div>
+          <div class="bg-gray-700 p-3 rounded-md flex-grow shadow-sm">
+            <p class="text-sm font-semibold text-gray-400">Mass:</p>
+            <p>${
+              payload.payload_mass_kg ? `${payload.payload_mass_kg} kg` : "N/A"
+            }</p>
+          </div>
+        </div>
+      </div>
+      <h3 class="text-xl font-bold mt-4 mb-2 border-b border-gray-700 pb-1">Orbit Parameters</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+        ${Object.entries(payload.orbit_params)
+          .map(
+            ([key, value]) => `
+          <div class="bg-gray-700 p-3 rounded-md shadow-sm">
+            <p class="text-sm font-semibold text-gray-400">${key
+              .replace(/_/g, " ")
+              .toUpperCase()}:</p>
+            <p>${value !== null ? value : "N/A"}</p>
+          </div>
+        `
+          )
+          .join("")}
+      </div>
+      <div class="flex justify-center">
+        <button class="mt-4 bg-blue-600 text-white px-4 py-2 rounded shadow-md hover:bg-blue-700 transition" onclick="this.closest('.fixed').remove()">Close</button>
+      </div>
+    </div>
+  `;
+
+        // Append the modal to the body
+        document.body.appendChild(modal);
+      }
+
+      function updateCharts(filteredPayloads) {
+        // Update Payload Mass Chart
+        const payloadMassChart = Chart.getChart("payloadMassChart");
+        payloadMassChart.data.labels = filteredPayloads.map(
+          (p) => p.payload_id
+        );
+        payloadMassChart.data.datasets[0].data = filteredPayloads.map(
+          (p) => p.payload_mass_kg
+        );
+        payloadMassChart.update();
+
+        // Update Orbit Altitude Scatter Plot
+        d3.select("#orbitAltitudeScatter").select("svg").remove();
+        createOrbitAltitudeScatter(filteredPayloads);
+
+        // Update Inclination & Eccentricity Chart
+        const inclinationEccentricityChart = Chart.getChart(
+          "inclinationEccentricityChart"
+        );
+        inclinationEccentricityChart.data.datasets[0].data =
+          filteredPayloads.map((p) => ({
+            x: p.orbit_params.inclination_deg,
+            y: p.orbit_params.eccentricity,
+            r: p.payload_mass_kg / 100,
+            payload_id: p.payload_id,
+          }));
+        inclinationEccentricityChart.update();
+
+        // Update Payload Type Chart
+        const payloadTypes = {};
+        filteredPayloads.forEach((payload) => {
+          payloadTypes[payload.payload_type] =
+            (payloadTypes[payload.payload_type] || 0) + 1;
+        });
+        const payloadTypeChart = Chart.getChart("payloadTypeChart");
+        payloadTypeChart.data.labels = Object.keys(payloadTypes);
+        payloadTypeChart.data.datasets[0].data = Object.values(payloadTypes);
+        payloadTypeChart.update();
+
+        // Update Payload Timeline
+        d3.select("#payloadTimeline").select("svg").remove();
+        createPayloadTimeline(filteredPayloads);
+
+        createDataTable(filteredPayloads);
+      }
+
+      // Call fetchPayloads to start the application
+      fetchPayloads();
+    </script>
+  </body>
+</html>

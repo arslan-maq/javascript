@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SpaceX Payload Explorer</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/leaflet.css"
+    />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 20px;
+      }
+      .container {
+        display: flex;
+        flex-wrap: wrap;
+      }
+      .filters,
+      .charts {
+        flex: 1;
+        min-width: 300px;
+        margin: 10px;
+      }
+      #map {
+        height: 300px;
+      }
+      .loading {
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="filters">
+        <input
+          type="search"
+          id="search"
+          placeholder="Search by ID or Customer"
+        />
+        <select id="orbitFilter"></select>
+        <select id="nationalityFilter"></select>
+        <select id="manufacturerFilter"></select>
+        <select id="typeFilter"></select>
+      </div>
+
+      <div class="charts">
+        <div id="barChart"></div>
+        <div id="scatterPlot"></div>
+        <div id="pieChart"></div>
+        <div id="lineChart"></div>
+        <div id="map"></div>
+      </div>
+
+      <div id="details"></div>
+    </div>
+
+    <div id="3d-orbit" style="width: 100%; height: 400px"></div>
+
+    <div class="loading">Loading...</div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.4/dist/Chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/plotly.js@1.58.4/dist/plotly.min.js"></script>
+    <script>
+      let payloads = [];
+      let chartInstances = {};
+
+      // Fetch data from SpaceX API
+      async function fetchPayloads() {
+        document.querySelector(".loading").style.display = "block";
+        try {
+          const response = await fetch(
+            "https://api.spacexdata.com/v3/payloads"
+          );
+          if (!response.ok) throw new Error("Network response was not ok");
+          payloads = await response.json();
+          populateFilters();
+          updateVisualizations();
+        } catch (error) {
+          console.error("Failed to fetch payloads:", error);
+          alert("Failed to load data. Please try again.");
+        } finally {
+          document.querySelector(".loading").style.display = "none";
+        }
+      }
+
+      // Populate filters with unique values
+      function populateFilters() {
+        const filters = ["orbit", "nationality", "manufacturer", "type"];
+        filters.forEach((filter) => {
+          const uniqueValues = [
+            ...new Set(payloads.map((p) => p[filter])),
+          ].filter(Boolean);
+          const select = document.getElementById(`${filter}Filter`);
+          uniqueValues.forEach((value) => {
+            const option = document.createElement("option");
+            option.value = value;
+            option.textContent = value;
+            select.appendChild(option);
+          });
+        });
+      }
+
+      // Update all visualizations based on current filters
+      function updateVisualizations() {
+        const filteredPayloads = applyFilters();
+        updateChart("barChart", createBarChart(filteredPayloads));
+        updateChart("scatterPlot", createScatterPlot(filteredPayloads));
+        updateChart("pieChart", createPieChart(filteredPayloads));
+        updateChart("lineChart", createLineChart(filteredPayloads));
+        updateMap(filteredPayloads);
+        // Here you would also update the 3D orbit visualization
+      }
+
+      // Helper to apply filters
+      function applyFilters() {
+        let result = payloads;
+        const searchValue = document
+          .getElementById("search")
+          .value.toLowerCase();
+        result = result.filter(
+          (p) =>
+            (p.payload_id.toLowerCase().includes(searchValue) ||
+              (p.customers &&
+                p.customers.some((c) =>
+                  c.toLowerCase().includes(searchValue)
+                ))) &&
+            (document.getElementById("orbitFilter").value === "" ||
+              p.orbit === document.getElementById("orbitFilter").value) &&
+            (document.getElementById("nationalityFilter").value === "" ||
+              p.nationality ===
+                document.getElementById("nationalityFilter").value) &&
+            (document.getElementById("manufacturerFilter").value === "" ||
+              p.manufacturer ===
+                document.getElementById("manufacturerFilter").value) &&
+            (document.getElementById("typeFilter").value === "" ||
+              p.payload_type === document.getElementById("typeFilter").value)
+        );
+        return result;
+      }
+
+      // Chart creation functions (to be implemented)
+      function createBarChart(data) {
+        /* Implementation */
+      }
+      function createScatterPlot(data) {
+        /* Implementation */
+      }
+      function createPieChart(data) {
+        /* Implementation */
+      }
+      function createLineChart(data) {
+        /* Implementation */
+      }
+
+      // Update or create a chart
+      function updateChart(id, chartFunction) {
+        if (chartInstances[id]) {
+          chartInstances[id].destroy();
+        }
+        chartInstances[id] = chartFunction;
+      }
+
+      // Map visualization
+      function updateMap(payloads) {
+        const map = L.map("map").setView([0, 0], 2);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(
+          map
+        );
+        // Add markers for launch locations
+      }
+
+      // 3D Orbit Visualization (placeholder for Three.js setup)
+      function setup3DOrbit() {
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(
+          75,
+          window.innerWidth / window.innerHeight,
+          0.1,
+          1000
+        );
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, 400);
+        document.getElementById("3d-orbit").appendChild(renderer.domElement);
+        // Add orbit visualization logic here
+      }
+
+      // Event listeners for filters and search
+      document
+        .querySelectorAll("select, input")
+        .forEach((elem) =>
+          elem.addEventListener("change", updateVisualizations)
+        );
+
+      // Initialization
+      fetchPayloads();
+      setup3DOrbit();
+    </script>
+  </body>
+</html>

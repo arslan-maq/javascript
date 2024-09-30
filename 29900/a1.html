@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SpaceX Payload Explorer</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/leaflet.css"
+    />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+      }
+      #app {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+      }
+      #controls,
+      #visualizations {
+        padding: 20px;
+      }
+      #controls {
+        background: #f4f4f4;
+      }
+      #visualizations {
+        flex: 1;
+        overflow-y: auto;
+      }
+      .chart-container {
+        width: 100%;
+        height: 300px;
+        margin-bottom: 20px;
+      }
+      #map {
+        height: 400px;
+      }
+      .loading,
+      .error {
+        text-align: center;
+        color: #888;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div id="controls">
+        <input
+          type="text"
+          id="search"
+          placeholder="Search by ID or Customer..."
+        />
+        <!-- Add filters here -->
+      </div>
+      <div id="visualizations">
+        <div id="loading" class="loading">Loading data...</div>
+        <div id="error" class="error" style="display: none">
+          Failed to load data. Please try again.
+        </div>
+        <div id="map" style="display: none"></div>
+        <div class="chart-container" id="massChart"></div>
+        <!-- Add other charts similarly -->
+      </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const apiUrl = "https://api.spacexdata.com/v3/payloads";
+        let payloads = [];
+
+        function fetchData() {
+          fetch(apiUrl)
+            .then((response) => response.json())
+            .then((data) => {
+              payloads = data;
+              document.getElementById("loading").style.display = "none";
+              initVisualizations();
+            })
+            .catch((error) => {
+              document.getElementById("loading").style.display = "none";
+              document.getElementById("error").style.display = "block";
+            });
+        }
+
+        function initVisualizations() {
+          // Initialize charts, maps, etc.
+          initMap();
+          initMassChart();
+        }
+
+        function initMap() {
+          var map = L.map("map").setView([0, 0], 1);
+          L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            attribution: "&copy; OpenStreetMap contributors",
+          }).addTo(map);
+          // Add markers for launch locations
+        }
+
+        function initMassChart() {
+          var ctx = document.getElementById("massChart").getContext("2d");
+          var massChart = new Chart(ctx, {
+            type: "bar",
+            data: {
+              labels: payloads.map((p) => p.payload_id),
+              datasets: [
+                {
+                  label: "Mass (kg)",
+                  data: payloads.map((p) => p.payload_mass_kg),
+                  backgroundColor: "rgba(75, 192, 192, 0.2)",
+                  borderColor: "rgba(75, 192, 192, 1)",
+                  borderWidth: 1,
+                },
+              ],
+            },
+            options: {
+              scales: {
+                y: {
+                  beginAtZero: true,
+                },
+              },
+            },
+          });
+        }
+
+        // Call fetchData to start
+        fetchData();
+      });
+    </script>
+  </body>
+</html>
