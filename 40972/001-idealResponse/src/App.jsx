@@ -359,9 +359,6 @@ export default function App() {
             <Button variant="outline" size="icon" onClick={() => setDarkMode(!darkMode)} className="bg-white text-blue-600 hover:bg-blue-100">
               {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </Button>
-            <Button variant="outline" size="icon" onClick={exportEntries} className="bg-white text-blue-600 hover:bg-blue-100">
-              <Settings className="h-4 w-4" />
-            </Button>
           </div>
         </div>
       </header>
